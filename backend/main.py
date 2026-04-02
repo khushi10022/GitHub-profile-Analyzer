@@ -1,119 +1,80 @@
-from typing import List, Optional
-
-from fastapi import FastAPI, HTTPException
+import os
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from typing import List, Optional
+from dotenv import load_dotenv
 
 import github_service
 import ai_service
 
+# Load .env file FIRST before anything else
+load_dotenv()
 
-class ChatMessage(BaseModel):
-    role: str  # "user" or "assistant"
-    content: str
+# Validate required environment variables on startup
+REQUIRED_ENV_VARS = ["GROQ_API_KEY"]
+for var in REQUIRED_ENV_VARS:
+    if not os.getenv(var):
+        raise RuntimeError(
+            f"Missing required environment variable: {var}\n"
+            f"Please create a .env file in the backend/ folder with {var}=your_key_here"
+        )
 
-
-class ChatRequest(BaseModel):
-    message: str
-    history: Optional[List[ChatMessage]] = None
-
-
-class CompareRequest(BaseModel):
-    username1: str
-    username2: str
-
-app = FastAPI(title="GitHub Analyzer API")
+app = FastAPI(title="GitHub Profile Analyzer API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 
+class ChatMessage(BaseModel):
+    role: str
+    content: str
+
+
+class ChatRequest(BaseModel):
+    message: str
+    history: Optional[List[ChatMessage]] = []
+
+
+@app.get("/")
+def root():
+    return {"status": "GitHub Profile Analyzer API is running"}
+
+
 @app.get("/health")
-async def health_check() -> dict:
+def health():
     return {"status": "ok"}
 
 
 @app.get("/analyze/{username}")
-async def analyze_profile(username: str) -> dict:
-    """
-    Analyze a GitHub profile by username using the github_service module.
-    """
-    if not username:
-        raise HTTPException(status_code=400, detail="Username is required.")
-
+async def analyze(username: str):
     try:
-        profile_summary = await github_service.analyze_user(username)
-    except github_service.UserNotFoundError:
-        raise HTTPException(status_code=404, detail="GitHub user not found.")
-    except Exception as exc:  # pragma: no cover - generic safety net
-        raise HTTPException(status_code=500, detail="Failed to analyze GitHub profile.") from exc
-
-    return {"username": username, "analysis": profile_summary}
+        github_data = await github_service.fetch_profile(username)
+        ai_result = await ai_service.analyze_profile(github_data)
+        return {
+            "status": "success",
+            "analysis": {
+                "profile": github_data.get("profile", {}),
+                "top_languages": github_data.get("top_languages", []),
+                "top_repositories": github_data.get("top_repositories", []),
+                "contribution_streak": github_data.get("contribution_streak", {}),
+                "ai_analysis": ai_result,
+            },
+        }
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
 
 
 @app.post("/chat")
-async def chat_with_assistant(payload: ChatRequest) -> dict:
-    """
-    Chat endpoint that forwards the latest user message and conversation
-    history to the AI service.
-    """
-    if not payload.message.strip():
-        raise HTTPException(status_code=400, detail="Message cannot be empty.")
-
-    history = payload.history or []
-
+async def chat(request: ChatRequest):
     try:
-        reply = await ai_service.generate_reply(message=payload.message, history=history)
-    except Exception as exc:  # pragma: no cover - generic safety net
-        raise HTTPException(status_code=500, detail="Failed to generate AI reply.") from exc
-
-    return {
-        "reply": reply,
-    }
-
-
-@app.post("/compare")
-async def compare_profiles(payload: CompareRequest) -> dict:
-    """
-    Compare two GitHub profiles and return both raw data and AI-generated growth tips.
-    """
-    username1 = payload.username1.strip()
-    username2 = payload.username2.strip()
-
-    if not username1 or not username2:
-        raise HTTPException(status_code=400, detail="Both username1 and username2 are required.")
-
-    try:
-        profile1 = await github_service.analyze_user(username1)
-    except github_service.UserNotFoundError:
-        raise HTTPException(status_code=404, detail=f"GitHub user '{username1}' not found.")
-    except Exception as exc:  # pragma: no cover
-        raise HTTPException(status_code=500, detail=f"Failed to analyze GitHub profile '{username1}'.") from exc
-
-    try:
-        profile2 = await github_service.analyze_user(username2)
-    except github_service.UserNotFoundError:
-        raise HTTPException(status_code=404, detail=f"GitHub user '{username2}' not found.")
-    except Exception as exc:  # pragma: no cover
-        raise HTTPException(status_code=500, detail=f"Failed to analyze GitHub profile '{username2}'.") from exc
-
-    try:
-        comparison = await ai_service.compare_profiles(profile1, profile2)
-    except Exception as exc:  # pragma: no cover
-        raise HTTPException(status_code=500, detail="Failed to generate AI comparison.") from exc
-
-    return {
-        "profile1": {"username": username1, "analysis": profile1},
-        "profile2": {"username": username2, "analysis": profile2},
-        "comparison": comparison,
-    }
-
-
-@app.get("/")
-async def root() -> dict:
-    return {"message": "GitHub Analyzer backend is running."}
+        history = [{"role": m.role, "content": m.content} for m in (request.history or [])]
+        reply = await ai_service.generate_reply(request.message, history)
+        return {"reply": reply}
+    except Exception as e:
+        return {"reply": f"Error: {str(e)}"}
