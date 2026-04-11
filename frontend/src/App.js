@@ -2,279 +2,159 @@ import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import './App.css';
 
+const API = process.env.REACT_APP_API_URL || 'http://127.0.0.1:8000';
+
 // ── Translations ───────────────────────────────────────────────────────────
-const DICTIONARY = {
-  English: { dashboard: "Dashboard", compare: "Compare Profiles", tutorial: "Learn GitHub", profile: "My Profile", settings: "Settings", faqs: "FAQs", contact: "Contact Us", terms: "Terms & Conditions", privacy: "Privacy Policy", subscription: "Subscription" },
-  Hindi: { dashboard: "डैशबोर्ड", compare: "प्रोफ़ाइल तुलना", tutorial: "गिटहब सीखें", profile: "मेरी प्रोफ़ाइल", settings: "सेटिंग्स", faqs: "सामान्य प्रश्न", contact: "संपर्क करें", terms: "नियम और शर्तें", privacy: "गोपनीयता नीति", subscription: "सदस्यता" },
-  Spanish: { dashboard: "Panel", compare: "Comparar Perfiles", tutorial: "Aprender GitHub", profile: "Mi Perfil", settings: "Ajustes", faqs: "Preguntas Frecuentes", contact: "Contáctenos", terms: "Términos y Condiciones", privacy: "Política de Privacidad", subscription: "Suscripción" },
-  French: { dashboard: "Tableau de Bord", compare: "Comparer Profils", tutorial: "Apprendre GitHub", profile: "Mon Profil", settings: "Paramètres", faqs: "FAQ", contact: "Nous Contacter", terms: "Conditions d'utilisation", privacy: "Politique de Confidentialité", subscription: "Abonnement" },
+const TRANSLATIONS = {
+  English:   { appName:'GitHub Profile Analyzer', dashboard:'Dashboard', compare:'Compare Profiles', tutorial:'Learn GitHub', settings:'Settings', profile:'My Profile', subscription:'Subscription', logout:'Logout', analyze:'Analyze', analyzing:'Analyzing...', searchPlaceholder:'Search any GitHub username...', analysisResults:'Analysis Results', welcomeBack:'Welcome back', signIn:'Sign In', createAccount:'Create Account', continueAsGuest:'Continue as Guest', emailAddress:'Email address', password:'Password', fullName:'Full name', reEnterPassword:'Re-enter password', needHelp:'Need help?', followers:'Followers', following:'Following', noBio:'No bio yet.', learnGitHub:'Learn GitHub', progress:'Progress', markAsLearned:'Mark as learned', send:'Send', faqs:'FAQs', contactUs:'Contact Us', terms:'Terms & Conditions', privacy:'Privacy Policy', about:'About', fontSize:'Font Size', fontStyle:'Font Style', languagePref:'Language Preference', account:'Account', uploadPhoto:'Upload Photo', remove:'Remove', yourProfile:'Your Profile', freePlan:'Free Plan', subscription_title:'Subscription Plans' },
+  Hindi:     { appName:'गिटहब प्रोफाइल एनालाइज़र', dashboard:'डैशबोर्ड', compare:'प्रोफाइल तुलना', tutorial:'गिटहब सीखें', settings:'सेटिंग्स', profile:'मेरी प्रोफाइल', subscription:'सदस्यता', logout:'लॉग आउट', analyze:'विश्लेषण करें', analyzing:'विश्लेषण हो रहा है...', searchPlaceholder:'कोई भी गिटहब यूज़रनेम खोजें...', analysisResults:'विश्लेषण परिणाम', welcomeBack:'वापस स्वागत है', signIn:'साइन इन', createAccount:'अकाउंट बनाएं', continueAsGuest:'अतिथि के रूप में जारी रखें', emailAddress:'ईमेल पता', password:'पासवर्ड', fullName:'पूरा नाम', reEnterPassword:'पासवर्ड दोबारा डालें', needHelp:'मदद चाहिए?', followers:'फॉलोअर्स', following:'फॉलोइंग', noBio:'अभी तक कोई बायो नहीं।', learnGitHub:'गिटहब सीखें', progress:'प्रगति', markAsLearned:'सीखा हुआ चिह्नित करें', send:'भेजें', faqs:'सामान्य प्रश्न', contactUs:'संपर्क करें', terms:'नियम और शर्तें', privacy:'गोपनीयता नीति', about:'के बारे में', fontSize:'फ़ॉन्ट आकार', fontStyle:'फ़ॉन्ट शैली', languagePref:'भाषा प्राथमिकता', account:'अकाउंट', uploadPhoto:'फ़ोटो अपलोड करें', remove:'हटाएं', yourProfile:'आपकी प्रोफाइल', freePlan:'मुफ्त योजना', subscription_title:'सदस्यता योजनाएं' },
+  Bengali:   { appName:'গিটহাব প্রোফাইল বিশ্লেষক', dashboard:'ড্যাশবোর্ড', compare:'প্রোফাইল তুলনা', tutorial:'গিটহাব শিখুন', settings:'সেটিংস', profile:'আমার প্রোফাইল', subscription:'সদস্যতা', logout:'লগ আউট', analyze:'বিশ্লেষণ করুন', analyzing:'বিশ্লেষণ চলছে...', searchPlaceholder:'যেকোনো গিটহাব ব্যবহারকারীর নাম অনুসন্ধান করুন...', analysisResults:'বিশ্লেষণের ফলাফল', welcomeBack:'স্বাগত ফিরে', signIn:'সাইন ইন', createAccount:'অ্যাকাউন্ট তৈরি করুন', continueAsGuest:'অতিথি হিসেবে চালিয়ে যান', emailAddress:'ইমেইল ঠিকানা', password:'পাসওয়ার্ড', fullName:'পুরো নাম', reEnterPassword:'পাসওয়ার্ড পুনরায় লিখুন', needHelp:'সাহায্য দরকার?', followers:'ফলোয়ার', following:'অনুসরণ', noBio:'এখনো কোনো বায়ো নেই।', learnGitHub:'গিটহাব শিখুন', progress:'অগ্রগতি', markAsLearned:'শেখা হিসেবে চিহ্নিত করুন', send:'পাঠান', faqs:'সাধারণ প্রশ্ন', contactUs:'যোগাযোগ করুন', terms:'শর্তাবলী', privacy:'গোপনীয়তা নীতি', about:'সম্পর্কে', fontSize:'ফন্ট সাইজ', fontStyle:'ফন্ট স্টাইল', languagePref:'ভাষা পছন্দ', account:'অ্যাকাউন্ট', uploadPhoto:'ছবি আপলোড করুন', remove:'সরান', yourProfile:'আপনার প্রোফাইল', freePlan:'বিনামূল্যে পরিকল্পনা', subscription_title:'সদস্যতা পরিকল্পনা' },
+  Spanish:   { appName:'Analizador de Perfil GitHub', dashboard:'Panel', compare:'Comparar Perfiles', tutorial:'Aprender GitHub', settings:'Configuración', profile:'Mi Perfil', subscription:'Suscripción', logout:'Cerrar sesión', analyze:'Analizar', analyzing:'Analizando...', searchPlaceholder:'Buscar cualquier usuario de GitHub...', analysisResults:'Resultados del análisis', welcomeBack:'Bienvenido de vuelta', signIn:'Iniciar sesión', createAccount:'Crear cuenta', continueAsGuest:'Continuar como invitado', emailAddress:'Correo electrónico', password:'Contraseña', fullName:'Nombre completo', reEnterPassword:'Reingresar contraseña', needHelp:'¿Necesitas ayuda?', followers:'Seguidores', following:'Siguiendo', noBio:'Sin bio todavía.', learnGitHub:'Aprender GitHub', progress:'Progreso', markAsLearned:'Marcar como aprendido', send:'Enviar', faqs:'Preguntas frecuentes', contactUs:'Contáctanos', terms:'Términos y condiciones', privacy:'Política de privacidad', about:'Acerca de', fontSize:'Tamaño de fuente', fontStyle:'Estilo de fuente', languagePref:'Preferencia de idioma', account:'Cuenta', uploadPhoto:'Subir foto', remove:'Eliminar', yourProfile:'Tu perfil', freePlan:'Plan gratuito', subscription_title:'Planes de suscripción' },
+  French:    { appName:'Analyseur de Profil GitHub', dashboard:'Tableau de bord', compare:'Comparer les profils', tutorial:'Apprendre GitHub', settings:'Paramètres', profile:'Mon profil', subscription:'Abonnement', logout:'Se déconnecter', analyze:'Analyser', analyzing:'Analyse en cours...', searchPlaceholder:'Rechercher un utilisateur GitHub...', analysisResults:"Résultats de l'analyse", welcomeBack:'Bon retour', signIn:'Se connecter', createAccount:'Créer un compte', continueAsGuest:"Continuer en tant qu'invité", emailAddress:'Adresse e-mail', password:'Mot de passe', fullName:'Nom complet', reEnterPassword:'Saisir à nouveau le mot de passe', needHelp:"Besoin d'aide?", followers:'Abonnés', following:'Abonnements', noBio:'Pas encore de bio.', learnGitHub:'Apprendre GitHub', progress:'Progrès', markAsLearned:'Marquer comme appris', send:'Envoyer', faqs:'FAQ', contactUs:'Contactez-nous', terms:'Conditions générales', privacy:'Politique de confidentialité', about:'À propos', fontSize:'Taille de police', fontStyle:'Style de police', languagePref:'Préférence de langue', account:'Compte', uploadPhoto:'Télécharger une photo', remove:'Supprimer', yourProfile:'Votre profil', freePlan:'Plan gratuit', subscription_title:"Plans d'abonnement" },
+  Arabic:    { appName:'محلل ملف GitHub', dashboard:'لوحة التحكم', compare:'مقارنة الملفات', tutorial:'تعلم GitHub', settings:'الإعدادات', profile:'ملفي الشخصي', subscription:'الاشتراك', logout:'تسجيل الخروج', analyze:'تحليل', analyzing:'جارٍ التحليل...', searchPlaceholder:'ابحث عن أي مستخدم GitHub...', analysisResults:'نتائج التحليل', welcomeBack:'مرحبًا بعودتك', signIn:'تسجيل الدخول', createAccount:'إنشاء حساب', continueAsGuest:'المتابعة كضيف', emailAddress:'البريد الإلكتروني', password:'كلمة المرور', fullName:'الاسم الكامل', reEnterPassword:'أعد إدخال كلمة المرور', needHelp:'تحتاج مساعدة؟', followers:'المتابعون', following:'يتابع', noBio:'لا توجد سيرة ذاتية بعد.', learnGitHub:'تعلم GitHub', progress:'التقدم', markAsLearned:'وضع علامة كمُتعلَّم', send:'إرسال', faqs:'الأسئلة الشائعة', contactUs:'اتصل بنا', terms:'الشروط والأحكام', privacy:'سياسة الخصوصية', about:'حول', fontSize:'حجم الخط', fontStyle:'نمط الخط', languagePref:'تفضيل اللغة', account:'الحساب', uploadPhoto:'رفع صورة', remove:'إزالة', yourProfile:'ملفك الشخصي', freePlan:'الخطة المجانية', subscription_title:'خطط الاشتراك' },
+  Japanese:  { appName:'GitHubプロフィール分析', dashboard:'ダッシュボード', compare:'プロフィール比較', tutorial:'GitHubを学ぶ', settings:'設定', profile:'マイプロフィール', subscription:'サブスクリプション', logout:'ログアウト', analyze:'分析', analyzing:'分析中...', searchPlaceholder:'GitHubユーザー名を検索...', analysisResults:'分析結果', welcomeBack:'おかえりなさい', signIn:'サインイン', createAccount:'アカウント作成', continueAsGuest:'ゲストとして続ける', emailAddress:'メールアドレス', password:'パスワード', fullName:'フルネーム', reEnterPassword:'パスワードを再入力', needHelp:'お困りですか?', followers:'フォロワー', following:'フォロー中', noBio:'バイオはまだありません。', learnGitHub:'GitHubを学ぶ', progress:'進捗', markAsLearned:'学習済みにする', send:'送信', faqs:'よくある質問', contactUs:'お問い合わせ', terms:'利用規約', privacy:'プライバシーポリシー', about:'について', fontSize:'フォントサイズ', fontStyle:'フォントスタイル', languagePref:'言語設定', account:'アカウント', uploadPhoto:'写真をアップロード', remove:'削除', yourProfile:'あなたのプロフィール', freePlan:'無料プラン', subscription_title:'サブスクリプションプラン' },
+  Korean:    { appName:'GitHub 프로필 분석기', dashboard:'대시보드', compare:'프로필 비교', tutorial:'GitHub 배우기', settings:'설정', profile:'내 프로필', subscription:'구독', logout:'로그아웃', analyze:'분석', analyzing:'분석 중...', searchPlaceholder:'GitHub 사용자 이름 검색...', analysisResults:'분석 결과', welcomeBack:'돌아오셨군요', signIn:'로그인', createAccount:'계정 만들기', continueAsGuest:'게스트로 계속', emailAddress:'이메일 주소', password:'비밀번호', fullName:'이름', reEnterPassword:'비밀번호 재입력', needHelp:'도움이 필요하신가요?', followers:'팔로워', following:'팔로잉', noBio:'아직 소개가 없습니다.', learnGitHub:'GitHub 배우기', progress:'진행 상황', markAsLearned:'배운 것으로 표시', send:'전송', faqs:'자주 묻는 질문', contactUs:'문의하기', terms:'이용약관', privacy:'개인정보 처리방침', about:'정보', fontSize:'글꼴 크기', fontStyle:'글꼴 스타일', languagePref:'언어 설정', account:'계정', uploadPhoto:'사진 업로드', remove:'삭제', yourProfile:'내 프로필', freePlan:'무료 플랜', subscription_title:'구독 플랜' },
+  German:    { appName:'GitHub Profil Analysator', dashboard:'Dashboard', compare:'Profile vergleichen', tutorial:'GitHub lernen', settings:'Einstellungen', profile:'Mein Profil', subscription:'Abonnement', logout:'Abmelden', analyze:'Analysieren', analyzing:'Analysiere...', searchPlaceholder:'Beliebigen GitHub-Benutzernamen suchen...', analysisResults:'Analyseergebnisse', welcomeBack:'Willkommen zurück', signIn:'Anmelden', createAccount:'Konto erstellen', continueAsGuest:'Als Gast fortfahren', emailAddress:'E-Mail-Adresse', password:'Passwort', fullName:'Vollständiger Name', reEnterPassword:'Passwort erneut eingeben', needHelp:'Hilfe benötigt?', followers:'Follower', following:'Folge ich', noBio:'Noch keine Bio.', learnGitHub:'GitHub lernen', progress:'Fortschritt', markAsLearned:'Als gelernt markieren', send:'Senden', faqs:'Häufig gestellte Fragen', contactUs:'Kontakt', terms:'Nutzungsbedingungen', privacy:'Datenschutzrichtlinie', about:'Über', fontSize:'Schriftgröße', fontStyle:'Schriftstil', languagePref:'Spracheinstellung', account:'Konto', uploadPhoto:'Foto hochladen', remove:'Entfernen', yourProfile:'Dein Profil', freePlan:'Kostenloser Plan', subscription_title:'Abonnementpläne' },
+  Portuguese:{ appName:'Analisador de Perfil GitHub', dashboard:'Painel', compare:'Comparar Perfis', tutorial:'Aprender GitHub', settings:'Configurações', profile:'Meu Perfil', subscription:'Assinatura', logout:'Sair', analyze:'Analisar', analyzing:'Analisando...', searchPlaceholder:'Pesquisar qualquer usuário do GitHub...', analysisResults:'Resultados da análise', welcomeBack:'Bem-vindo de volta', signIn:'Entrar', createAccount:'Criar conta', continueAsGuest:'Continuar como convidado', emailAddress:'Endereço de e-mail', password:'Senha', fullName:'Nome completo', reEnterPassword:'Redigitar senha', needHelp:'Precisa de ajuda?', followers:'Seguidores', following:'Seguindo', noBio:'Sem bio ainda.', learnGitHub:'Aprender GitHub', progress:'Progresso', markAsLearned:'Marcar como aprendido', send:'Enviar', faqs:'Perguntas frequentes', contactUs:'Fale conosco', terms:'Termos e condições', privacy:'Política de privacidade', about:'Sobre', fontSize:'Tamanho da fonte', fontStyle:'Estilo de fonte', languagePref:'Preferência de idioma', account:'Conta', uploadPhoto:'Enviar foto', remove:'Remover', yourProfile:'Seu perfil', freePlan:'Plano gratuito', subscription_title:'Planos de assinatura' },
+  Russian:   { appName:'Анализатор профиля GitHub', dashboard:'Панель', compare:'Сравнить профили', tutorial:'Учить GitHub', settings:'Настройки', profile:'Мой профиль', subscription:'Подписка', logout:'Выйти', analyze:'Анализировать', analyzing:'Анализируется...', searchPlaceholder:'Поиск любого пользователя GitHub...', analysisResults:'Результаты анализа', welcomeBack:'С возвращением', signIn:'Войти', createAccount:'Создать аккаунт', continueAsGuest:'Продолжить как гость', emailAddress:'Адрес электронной почты', password:'Пароль', fullName:'Полное имя', reEnterPassword:'Повторите пароль', needHelp:'Нужна помощь?', followers:'Подписчики', following:'Подписки', noBio:'Нет биографии.', learnGitHub:'Учить GitHub', progress:'Прогресс', markAsLearned:'Отметить как изученное', send:'Отправить', faqs:'Часто задаваемые вопросы', contactUs:'Свяжитесь с нами', terms:'Условия использования', privacy:'Политика конфиденциальности', about:'О приложении', fontSize:'Размер шрифта', fontStyle:'Стиль шрифта', languagePref:'Языковые настройки', account:'Аккаунт', uploadPhoto:'Загрузить фото', remove:'Удалить', yourProfile:'Ваш профиль', freePlan:'Бесплатный план', subscription_title:'Планы подписки' },
 };
-const tStr = (lang, key) => (DICTIONARY[lang] || DICTIONARY.English)[key] || DICTIONARY.English[key] || key;
+
+const tr = (lang, key) => {
+  const t = TRANSLATIONS[lang] || TRANSLATIONS['English'];
+  return t[key] || TRANSLATIONS['English'][key] || key;
+};
+
+// ── Subscription Helpers ───────────────────────────────────────────────────
+const FREE_ANALYZE_LIMIT = 3;
+const FREE_COMPARE_LIMIT = 3;
+const getSubscription = () => { try { const s = JSON.parse(localStorage.getItem('gpa-subscription') || 'null'); return s && new Date(s.expiresAt) > new Date() ? s : null; } catch { return null; } };
+const isPremium = () => !!getSubscription();
+const getUsage = () => ({ analyze: parseInt(localStorage.getItem('gpa-analyze-count') || '0'), compare: parseInt(localStorage.getItem('gpa-compare-count') || '0') });
+const incrementUsage = (type) => { const k = `gpa-${type}-count`; localStorage.setItem(k, String(parseInt(localStorage.getItem(k) || '0') + 1)); };
+const canAnalyze = () => isPremium() || getUsage().analyze < FREE_ANALYZE_LIMIT;
+const canCompare = () => isPremium() || getUsage().compare < FREE_COMPARE_LIMIT;
 
 // ── Themes ─────────────────────────────────────────────────────────────────
 const THEMES = {
-  dark:       { name:'Dark',        emoji:'🌑', bg:'#020617',  containerBg:'rgba(15,23,42,0.96)',  cardBg:'rgba(15,23,42,0.95)',  accent:'#38bdf8', accent2:'#6366f1', text:'#e5e7eb', subtext:'#9ca3af', border:'rgba(55,65,81,0.9)',   sidebarBg:'rgba(2,6,23,0.98)',      btnBg:'linear-gradient(135deg,#38bdf8,#0369a1)', animated:false },
-  light:      { name:'Light',       emoji:'☀️', bg:'#f1f5f9',  containerBg:'rgba(249,250,251,0.96)',cardBg:'rgba(241,245,249,0.95)',accent:'#2563eb', accent2:'#7c3aed', text:'#111827', subtext:'#6b7280', border:'rgba(209,213,219,1)', sidebarBg:'rgba(249,250,251,0.99)',btnBg:'linear-gradient(135deg,#3b82f6,#1d4ed8)', animated:false },
-  ocean:      { name:'Ocean',       emoji:'🌊', bg:'#082f49',  containerBg:'rgba(8,47,73,0.96)',   cardBg:'rgba(12,74,110,0.85)', accent:'#06b6d4', accent2:'#0891b2', text:'#e0f2fe', subtext:'#7dd3fc', border:'rgba(14,116,144,0.6)',sidebarBg:'rgba(2,6,23,0.98)',      btnBg:'linear-gradient(135deg,#06b6d4,#0369a1)', animated:false },
-  sunset:     { name:'Sunset',      emoji:'🌅', bg:'#431407',  containerBg:'rgba(67,20,7,0.96)',   cardBg:'rgba(124,45,18,0.85)',accent:'#fb923c',  accent2:'#f43f5e', text:'#fff7ed', subtext:'#fed7aa', border:'rgba(194,65,12,0.6)', sidebarBg:'rgba(28,10,0,0.98)',    btnBg:'linear-gradient(135deg,#fb923c,#dc2626)',  animated:false },
-  forest:     { name:'Forest',      emoji:'🌲', bg:'#052e16',  containerBg:'rgba(5,46,22,0.96)',   cardBg:'rgba(20,83,45,0.85)', accent:'#4ade80',  accent2:'#22c55e', text:'#f0fdf4', subtext:'#86efac', border:'rgba(22,163,74,0.5)', sidebarBg:'rgba(0,10,4,0.98)',     btnBg:'linear-gradient(135deg,#4ade80,#15803d)',  animated:false },
-  hero_red:   { name:'Hero Red',    emoji:'🦸', bg:'#1a0000',  containerBg:'rgba(40,0,0,0.96)',    cardBg:'rgba(60,0,0,0.9)',    accent:'#ef4444',  accent2:'#fbbf24', text:'#fef2f2', subtext:'#fca5a5', border:'rgba(239,68,68,0.4)', sidebarBg:'rgba(10,0,0,0.98)',     btnBg:'linear-gradient(135deg,#ef4444,#b91c1c)',  animated:true },
-  dark_knight:{ name:'Dark Knight', emoji:'🦇', bg:'#000000',  containerBg:'rgba(10,10,20,0.97)',  cardBg:'rgba(15,15,30,0.95)', accent:'#a78bfa',  accent2:'#7c3aed', text:'#e9d5ff', subtext:'#c4b5fd', border:'rgba(167,139,250,0.3)',sidebarBg:'rgba(5,5,10,0.99)',     btnBg:'linear-gradient(135deg,#7c3aed,#4c1d95)',  animated:true },
-  web_slinger:{ name:'Web Slinger', emoji:'🕷️', bg:'#1e0000',  containerBg:'rgba(30,0,10,0.96)',   cardBg:'rgba(50,0,15,0.9)',   accent:'#f87171',  accent2:'#3b82f6', text:'#fff1f2', subtext:'#fecaca', border:'rgba(248,113,113,0.4)',sidebarBg:'rgba(15,0,5,0.99)',    btnBg:'linear-gradient(135deg,#ef4444,#1d4ed8)',  animated:true },
-  kpop_pink:  { name:'K-Pop Pink',  emoji:'🌸', bg:'#1a0014',  containerBg:'rgba(40,0,30,0.96)',   cardBg:'rgba(60,0,45,0.9)',   accent:'#f472b6',  accent2:'#e879f9', text:'#fdf2f8', subtext:'#f9a8d4', border:'rgba(244,114,182,0.4)',sidebarBg:'rgba(10,0,8,0.98)',    btnBg:'linear-gradient(135deg,#f472b6,#a21caf)',  animated:true },
-  neon_city:  { name:'Neon City',   emoji:'🌆', bg:'#000814',  containerBg:'rgba(0,8,20,0.97)',    cardBg:'rgba(0,15,35,0.95)',  accent:'#00ff88',  accent2:'#ff0080', text:'#ccffee', subtext:'#99ffcc', border:'rgba(0,255,136,0.3)', sidebarBg:'rgba(0,4,10,0.99)',     btnBg:'linear-gradient(135deg,#00ff88,#00ccff)',  animated:true },
-  galaxy:     { name:'Galaxy',      emoji:'🌌', bg:'#0a0015',  containerBg:'rgba(15,0,30,0.97)',   cardBg:'rgba(20,0,40,0.95)',  accent:'#c084fc',  accent2:'#818cf8', text:'#f5f3ff', subtext:'#d8b4fe', border:'rgba(192,132,252,0.3)',sidebarBg:'rgba(5,0,12,0.99)',    btnBg:'linear-gradient(135deg,#c084fc,#6d28d9)',  animated:true },
-  golden:     { name:'Golden',      emoji:'✨', bg:'#1a1000',  containerBg:'rgba(40,25,0,0.97)',   cardBg:'rgba(50,30,0,0.95)',  accent:'#fbbf24',  accent2:'#f59e0b', text:'#fffbeb', subtext:'#fde68a', border:'rgba(251,191,36,0.4)', sidebarBg:'rgba(10,6,0,0.99)',    btnBg:'linear-gradient(135deg,#fbbf24,#d97706)',  animated:true },
+  dark:       { name:'Dark',        emoji:'🌑', bg:'#020617',  containerBg:'rgba(15,23,42,0.96)',  cardBg:'rgba(15,23,42,0.95)',  accent:'#38bdf8', accent2:'#6366f1', text:'#e5e7eb', subtext:'#9ca3af', border:'rgba(55,65,81,0.9)',   sidebarBg:'rgba(2,6,23,0.98)',      btnBg:'linear-gradient(135deg,#38bdf8,#0369a1)', animated:false, premium:false },
+  light:      { name:'Light',       emoji:'☀️', bg:'#f1f5f9',  containerBg:'rgba(249,250,251,0.96)',cardBg:'rgba(241,245,249,0.95)',accent:'#2563eb', accent2:'#7c3aed', text:'#111827', subtext:'#6b7280', border:'rgba(209,213,219,1)', sidebarBg:'rgba(249,250,251,0.99)',btnBg:'linear-gradient(135deg,#3b82f6,#1d4ed8)', animated:false, premium:false },
+  ocean:      { name:'Ocean',       emoji:'🌊', bg:'#082f49',  containerBg:'rgba(8,47,73,0.96)',   cardBg:'rgba(12,74,110,0.85)', accent:'#06b6d4', accent2:'#0891b2', text:'#e0f2fe', subtext:'#7dd3fc', border:'rgba(14,116,144,0.6)',sidebarBg:'rgba(2,6,23,0.98)',      btnBg:'linear-gradient(135deg,#06b6d4,#0369a1)', animated:false, premium:false },
+  sunset:     { name:'Sunset',      emoji:'🌅', bg:'#431407',  containerBg:'rgba(67,20,7,0.96)',   cardBg:'rgba(124,45,18,0.85)',accent:'#fb923c',  accent2:'#f43f5e', text:'#fff7ed', subtext:'#fed7aa', border:'rgba(194,65,12,0.6)', sidebarBg:'rgba(28,10,0,0.98)',    btnBg:'linear-gradient(135deg,#fb923c,#dc2626)',  animated:false, premium:false },
+  forest:     { name:'Forest',      emoji:'🌲', bg:'#052e16',  containerBg:'rgba(5,46,22,0.96)',   cardBg:'rgba(20,83,45,0.85)', accent:'#4ade80',  accent2:'#22c55e', text:'#f0fdf4', subtext:'#86efac', border:'rgba(22,163,74,0.5)', sidebarBg:'rgba(0,10,4,0.98)',     btnBg:'linear-gradient(135deg,#4ade80,#15803d)',  animated:false, premium:false },
+  hero_red:   { name:'Hero Red',    emoji:'🦸', bg:'#1a0000',  containerBg:'rgba(40,0,0,0.96)',    cardBg:'rgba(60,0,0,0.9)',    accent:'#ef4444',  accent2:'#fbbf24', text:'#fef2f2', subtext:'#fca5a5', border:'rgba(239,68,68,0.4)', sidebarBg:'rgba(10,0,0,0.98)',     btnBg:'linear-gradient(135deg,#ef4444,#b91c1c)',  animated:true, premium:true },
+  dark_knight:{ name:'Dark Knight', emoji:'🦇', bg:'#000000',  containerBg:'rgba(10,10,20,0.97)',  cardBg:'rgba(15,15,30,0.95)', accent:'#a78bfa',  accent2:'#7c3aed', text:'#e9d5ff', subtext:'#c4b5fd', border:'rgba(167,139,250,0.3)',sidebarBg:'rgba(5,5,10,0.99)',     btnBg:'linear-gradient(135deg,#7c3aed,#4c1d95)',  animated:true, premium:true },
+  web_slinger:{ name:'Web Slinger', emoji:'🕷️', bg:'#1e0000',  containerBg:'rgba(30,0,10,0.96)',   cardBg:'rgba(50,0,15,0.9)',   accent:'#f87171',  accent2:'#3b82f6', text:'#fff1f2', subtext:'#fecaca', border:'rgba(248,113,113,0.4)',sidebarBg:'rgba(15,0,5,0.99)',    btnBg:'linear-gradient(135deg,#ef4444,#1d4ed8)',  animated:true, premium:true },
+  kpop_pink:  { name:'K-Pop Pink',  emoji:'🌸', bg:'#1a0014',  containerBg:'rgba(40,0,30,0.96)',   cardBg:'rgba(60,0,45,0.9)',   accent:'#f472b6',  accent2:'#e879f9', text:'#fdf2f8', subtext:'#f9a8d4', border:'rgba(244,114,182,0.4)',sidebarBg:'rgba(10,0,8,0.98)',    btnBg:'linear-gradient(135deg,#f472b6,#a21caf)',  animated:true, premium:true },
+  neon_city:  { name:'Neon City',   emoji:'🌆', bg:'#000814',  containerBg:'rgba(0,8,20,0.97)',    cardBg:'rgba(0,15,35,0.95)',  accent:'#00ff88',  accent2:'#ff0080', text:'#ccffee', subtext:'#99ffcc', border:'rgba(0,255,136,0.3)', sidebarBg:'rgba(0,4,10,0.99)',     btnBg:'linear-gradient(135deg,#00ff88,#00ccff)',  animated:true, premium:true },
+  galaxy:     { name:'Galaxy',      emoji:'🌌', bg:'#0a0015',  containerBg:'rgba(15,0,30,0.97)',   cardBg:'rgba(20,0,40,0.95)',  accent:'#c084fc',  accent2:'#818cf8', text:'#f5f3ff', subtext:'#d8b4fe', border:'rgba(192,132,252,0.3)',sidebarBg:'rgba(5,0,12,0.99)',    btnBg:'linear-gradient(135deg,#c084fc,#6d28d9)',  animated:true, premium:true },
+  golden:     { name:'Golden',      emoji:'✨', bg:'#1a1000',  containerBg:'rgba(40,25,0,0.97)',   cardBg:'rgba(50,30,0,0.95)',  accent:'#fbbf24',  accent2:'#f59e0b', text:'#fffbeb', subtext:'#fde68a', border:'rgba(251,191,36,0.4)', sidebarBg:'rgba(10,6,0,0.99)',    btnBg:'linear-gradient(135deg,#fbbf24,#d97706)',  animated:true, premium:true },
 };
 
-const LANGUAGES=['English','Hindi','Bengali','Spanish','French','Arabic','Portuguese','Russian','Japanese','Korean','German','Chinese','Italian','Turkish','Vietnamese','Thai','Dutch','Polish','Swedish','Norwegian'];
+const LANGUAGES_LIST=['English','Hindi','Bengali','Spanish','French','Arabic','Portuguese','Russian','Japanese','Korean','German','Chinese','Italian','Turkish','Vietnamese','Thai','Dutch','Polish','Swedish','Norwegian'];
 const FONT_SIZES=['Small','Medium','Large','Extra Large'];
 const FONT_SIZE_MAP={ Small:'13px', Medium:'15px', Large:'17px', 'Extra Large':'19px' };
-const FONT_STYLES=[
-  { name:'Default', value:'system-ui, sans-serif' },
-  { name:'Modern', value:'"Inter", sans-serif' },
-  { name:'Classic', value:'Georgia, serif' },
-  { name:'Mono', value:'"Courier New", monospace' },
-  { name:'Rounded', value:'"Trebuchet MS", sans-serif' },
-  { name:'Elegant', value:'Palatino, serif' },
-  { name:'Bold', value:'Impact, sans-serif' },
-  { name:'Soft', value:'Verdana, sans-serif' },
-  { name:'Futuristic', value:'"Arial Black", sans-serif' },
-  { name:'Minimal', value:'"Helvetica Neue", sans-serif' },
-];
+const FONT_STYLES=[{name:'Default',value:'system-ui, sans-serif'},{name:'Modern',value:'"Inter", sans-serif'},{name:'Classic',value:'Georgia, serif'},{name:'Mono',value:'"Courier New", monospace'},{name:'Rounded',value:'"Trebuchet MS", sans-serif'},{name:'Elegant',value:'Palatino, serif'},{name:'Bold',value:'Impact, sans-serif'},{name:'Soft',value:'Verdana, sans-serif'},{name:'Futuristic',value:'"Arial Black", sans-serif'},{name:'Minimal',value:'"Helvetica Neue", sans-serif'}];
 const MALE_AVATARS=['👨','👨‍💻','👨‍🎓','👨‍🔬','👨‍🎨','👦','🧔','👨‍💼'];
 const FEMALE_AVATARS=['👩','👩‍💻','👩‍🎓','👩‍🔬','👩‍🎨','👧','👩‍💼','🧕'];
 const OTHER_AVATARS=['🧑','🧑‍💻','🧑‍🎓','🧑‍🔬','🧑‍🎨','🧑‍💼','🤖','👾'];
 const INITIAL_CHAT=[{id:1,from:'bot',text:'Hi! I am your GitHub Growth Assistant. Ask me anything about improving your GitHub profile.'}];
+function getAvatarsByGender(g){if(g==='Male')return MALE_AVATARS;if(g==='Female')return FEMALE_AVATARS;return OTHER_AVATARS;}
 
-function getAvatarsByGender(g){ if(g==='Male')return MALE_AVATARS; if(g==='Female')return FEMALE_AVATARS; return OTHER_AVATARS; }
-
-// ── Helpers ────────────────────────────────────────────────────────────────
-function AnimatedGitHubLogo({size=32,color='#38bdf8'}){
-  return(<svg viewBox="0 0 16 16" style={{width:size,height:size,fill:color,animation:'floatLogo 3s ease-in-out infinite',display:'block'}} aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8"/></svg>);
-}
-function LoadingSpinner(){return <div className="spinner-wrapper"><div className="spinner"/><span className="spinner-label">Analyzing profile...</span></div>;}
+// ── Small Helpers ──────────────────────────────────────────────────────────
+function AnimatedGitHubLogo({size=32,color='#38bdf8'}){return(<svg viewBox="0 0 16 16" style={{width:size,height:size,fill:color,animation:'floatLogo 3s ease-in-out infinite',display:'block'}} aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8"/></svg>);}
 function Toast({message,onClose}){useEffect(()=>{const t=setTimeout(onClose,3000);return()=>clearTimeout(t);},[onClose]);return <div style={{position:'fixed',bottom:'5rem',left:'50%',transform:'translateX(-50%)',background:'rgba(20,20,20,0.97)',color:'#fff',padding:'0.75rem 1.5rem',borderRadius:'999px',fontSize:'0.9rem',zIndex:9999,boxShadow:'0 8px 32px rgba(0,0,0,0.5)',border:'1px solid rgba(255,255,255,0.1)',whiteSpace:'nowrap'}}>{message}</div>;}
 function UserAvatar({name,photo,avatarEmoji,size=36,accent='#38bdf8',onClick}){return(<div onClick={onClick} style={{width:size,height:size,borderRadius:'999px',overflow:'hidden',cursor:onClick?'pointer':'default',border:`2px solid ${accent}`,flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',background:`linear-gradient(135deg,${accent}44,${accent}22)`,fontSize:size*0.4,fontWeight:700,color:accent,userSelect:'none',transition:'transform 0.15s ease',boxShadow:`0 0 12px ${accent}44`}}>{photo?<img src={photo} alt="avatar" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:(avatarEmoji||(name?name[0].toUpperCase():'G'))}</div>);}
 
-// ── Pie Chart Component ────────────────────────────────────────────────────
-function PieChart({ data, size=180, t }) {
-  const total = data.reduce((sum, d) => sum + d.value, 0);
-  if (total === 0) return null;
-  let cumulative = 0;
-  const COLORS = ['#38bdf8','#a78bfa','#4ade80','#fb923c','#f472b6','#fbbf24','#60a5fa','#34d399'];
-
-  const slices = data.map((d, i) => {
-    const pct = d.value / total;
-    const startAngle = cumulative * 2 * Math.PI - Math.PI / 2;
-    cumulative += pct;
-    const endAngle = cumulative * 2 * Math.PI - Math.PI / 2;
-    const r = size / 2 - 10;
-    const cx = size / 2, cy = size / 2;
-    const x1 = cx + r * Math.cos(startAngle), y1 = cy + r * Math.sin(startAngle);
-    const x2 = cx + r * Math.cos(endAngle), y2 = cy + r * Math.sin(endAngle);
-    const largeArc = pct > 0.5 ? 1 : 0;
-    const path = `M ${cx} ${cy} L ${x1} ${y1} A ${r} ${r} 0 ${largeArc} 1 ${x2} ${y2} Z`;
-    return { path, color: COLORS[i % COLORS.length], label: d.label, pct: Math.round(pct * 100) };
-  });
-
-  return (
-    <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:'0.75rem' }}>
-      <svg width={size} height={size} style={{ filter:'drop-shadow(0 4px 12px rgba(0,0,0,0.3))' }}>
-        {slices.map((s, i) => (
-          <path key={i} d={s.path} fill={s.color} stroke={t.bg} strokeWidth="2" style={{ transition:'opacity 0.2s' }}/>
-        ))}
-        <circle cx={size/2} cy={size/2} r={size/4} fill={t.cardBg}/>
-      </svg>
-      <div style={{ display:'flex', flexDirection:'column', gap:'0.3rem', width:'100%' }}>
-        {slices.map((s, i) => (
-          <div key={i} style={{ display:'flex', alignItems:'center', gap:'0.5rem', fontSize:'0.78rem' }}>
-            <div style={{ width:'0.7rem', height:'0.7rem', borderRadius:'2px', background:s.color, flexShrink:0 }}/>
-            <span style={{ color:t.text, flex:1 }}>{s.label}</span>
-            <span style={{ color:t.subtext, fontWeight:600 }}>{s.pct}%</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
+// ── Paywall Modal ──────────────────────────────────────────────────────────
+function PaywallModal({t,onClose,onGoSubscribe,type}){
+  const msgs={analyze:{icon:'🔍',title:'Free Analyzes Used Up!',desc:`You've used all ${FREE_ANALYZE_LIMIT} free profile analyzes. Upgrade to Pro for unlimited.`},compare:{icon:'⚖️',title:'Free Comparisons Used Up!',desc:`You've used all ${FREE_COMPARE_LIMIT} free comparisons. Upgrade to Pro for unlimited.`},theme:{icon:'🎨',title:'Premium Theme!',desc:'Gen-Z animated themes are for Pro subscribers only.'}};
+  const msg=msgs[type]||msgs.analyze;
+  return(<div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.75)',zIndex:500,display:'flex',alignItems:'center',justifyContent:'center',padding:'1rem'}}><div style={{background:t.containerBg,border:`1px solid ${t.border}`,borderRadius:'1.5rem',padding:'2rem',maxWidth:'400px',width:'100%',textAlign:'center',boxShadow:'0 24px 80px rgba(0,0,0,0.5)'}}><div style={{fontSize:'3rem',marginBottom:'0.75rem'}}>{msg.icon}</div><h2 style={{margin:'0 0 0.5rem',color:t.text,fontSize:'1.2rem',fontWeight:700}}>{msg.title}</h2><p style={{color:t.subtext,fontSize:'0.9rem',margin:'0 0 1.5rem',lineHeight:1.6}}>{msg.desc}</p><div style={{display:'flex',gap:'0.75rem',justifyContent:'center'}}><button onClick={onClose} style={{background:'transparent',border:`1px solid ${t.border}`,color:t.subtext,padding:'0.65rem 1.25rem',borderRadius:'0.75rem',cursor:'pointer',fontSize:'0.9rem'}}>Maybe Later</button><button onClick={onGoSubscribe} style={{background:t.btnBg,border:'none',color:'#fff',padding:'0.65rem 1.5rem',borderRadius:'0.75rem',cursor:'pointer',fontWeight:700,fontSize:'0.9rem'}}>Upgrade to Pro ✨</button></div></div></div>);
 }
 
-// ── Profile Roast + Reality Check ─────────────────────────────────────────
-function ProfileRealityCheck({ profile, languages, repos, streak, aiAnalysis, t }) {
-  const p = profile || {};
-  const issues = [];
-  const badges = [];
-  let placementScore = 0;
-  let jobScore = 0;
+// ── Pie Chart ──────────────────────────────────────────────────────────────
+function PieChart({data,size=180,t}){
+  const total=data.reduce((s,d)=>s+d.value,0);
+  if(total===0)return null;
+  let cumulative=0;
+  const COLORS=['#38bdf8','#a78bfa','#4ade80','#fb923c','#f472b6','#fbbf24','#60a5fa','#34d399'];
+  const slices=data.map((d,i)=>{const pct=d.value/total;const startAngle=cumulative*2*Math.PI-Math.PI/2;cumulative+=pct;const endAngle=cumulative*2*Math.PI-Math.PI/2;const r=size/2-10,cx=size/2,cy=size/2;const x1=cx+r*Math.cos(startAngle),y1=cy+r*Math.sin(startAngle);const x2=cx+r*Math.cos(endAngle),y2=cy+r*Math.sin(endAngle);const largeArc=pct>0.5?1:0;return{path:`M ${cx} ${cy} L ${x1} ${y1} A ${r} ${r} 0 ${largeArc} 1 ${x2} ${y2} Z`,color:COLORS[i%COLORS.length],label:d.label,pct:Math.round(pct*100)};});
+  return(<div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:'0.75rem'}}><svg width={size} height={size} style={{filter:'drop-shadow(0 4px 12px rgba(0,0,0,0.3))'}}>{slices.map((s,i)=><path key={i} d={s.path} fill={s.color} stroke={t.bg} strokeWidth="2"/>)}<circle cx={size/2} cy={size/2} r={size/4} fill={t.cardBg}/></svg><div style={{display:'flex',flexDirection:'column',gap:'0.3rem',width:'100%'}}>{slices.map((s,i)=>(<div key={i} style={{display:'flex',alignItems:'center',gap:'0.5rem',fontSize:'0.78rem'}}><div style={{width:'0.7rem',height:'0.7rem',borderRadius:'2px',background:s.color,flexShrink:0}}/><span style={{color:t.text,flex:1}}>{s.label}</span><span style={{color:t.subtext,fontWeight:600}}>{s.pct}%</span></div>))}</div></div>);
+}
 
-  // Check bio
-  if (!p.bio) issues.push({ icon:'💀', severity:'critical', title:'No Bio!', desc:'Your profile bio is completely empty. Recruiters skip profiles with no bio. You are invisible to 90% of hiring managers.', fix:'Go to GitHub → Edit profile → Add a bio describing what you do and what you are passionate about.' });
-  else { placementScore += 10; jobScore += 10; }
+// ── Profile Reality Check ──────────────────────────────────────────────────
+function ProfileRealityCheck({profile,languages,repos,streak,t}){
+  const p=profile||{};
+  const issues=[];
+  let placementScore=0,jobScore=0;
 
-  // Check avatar
-  if (!p.avatar_url || p.avatar_url.includes('gravatar')) issues.push({ icon:'🙈', severity:'high', title:'No Profile Picture', desc:'You are using the default avatar. This screams "I do not care about my profile" to recruiters.', fix:'Upload a real professional photo. Even a clear selfie is 10x better than the default.' });
-  else { placementScore += 8; jobScore += 8; }
+  if(p.bio){placementScore+=10;jobScore+=10;}else issues.push({icon:'💀',severity:'critical',title:'No Bio!',desc:'Your profile bio is completely empty. Recruiters skip profiles with no bio. You are invisible to 90% of hiring managers.',fix:'Go to GitHub → Edit profile → Add a bio describing what you do.'});
+  if(p.avatar_url&&!p.avatar_url.includes('gravatar')){placementScore+=8;jobScore+=8;}else issues.push({icon:'🙈',severity:'high',title:'No Profile Picture',desc:'You are using the default avatar. This screams unprofessional to recruiters.',fix:'Upload a real professional photo — even a clear selfie is better than default.'});
+  if(repos.length===0)issues.push({icon:'🏜️',severity:'critical',title:'Zero Public Repos!',desc:'Your GitHub is a ghost town. No repos means no proof you can code.',fix:'Push at least 3–5 projects publicly.'});
+  else if(repos.length<3)issues.push({icon:'📦',severity:'high',title:`Only ${repos.length} Public Repo(s)`,desc:'Less than 3 repos makes your profile look abandoned.',fix:'Aim for at least 6–10 public repos showing different skills.'});
+  else{placementScore+=20;jobScore+=15;}
+  const noDesc=repos.filter(r=>!r.description||r.description.length<5).length;
+  if(noDesc>0)issues.push({icon:'📝',severity:'medium',title:`${noDesc} Repos Missing Descriptions`,desc:'Repos without descriptions look abandoned. Nobody knows what your code does.',fix:'Add a clear 1-line description to each repo on GitHub.'});
+  else{placementScore+=10;jobScore+=10;}
+  const currentStreak=streak?.current_streak_days||0,yearlyContribs=streak?.yearly_contributions||0;
+  if(currentStreak===0&&yearlyContribs<10)issues.push({icon:'💤',severity:'critical',title:'Not Coding Regularly!',desc:`Only ${yearlyContribs} contributions this year. Your activity graph is basically flat.`,fix:'Commit code every single day — even docs updates count. Build the habit.'});
+  else if(yearlyContribs<50)issues.push({icon:'📉',severity:'high',title:'Low Contribution Activity',desc:`${yearlyContribs} contributions this year is below average.`,fix:'Set a daily coding habit — 30 min/day transforms your graph in 3 months.'});
+  else{placementScore+=20;jobScore+=20;}
+  if(languages.length===0)issues.push({icon:'🤔',severity:'high',title:'No Languages Detected',desc:'GitHub cannot detect any languages from your repos.',fix:'Push actual code files (.py, .js, .java etc) to your repos.'});
+  else if(languages.length===1)issues.push({icon:'🔧',severity:'medium',title:'Only One Language',desc:`You only show ${languages[0]?.language} skills. Companies want versatility.`,fix:'Build a project in a different language or framework.'});
+  else{placementScore+=15;jobScore+=15;}
+  if((p.followers||0)<5)issues.push({icon:'👻',severity:'low',title:'Almost No Followers',desc:'Low followers means you are not engaging with the community.',fix:'Star repos you use, follow developers in your field, and contribute to OSS.'});
+  else{placementScore+=7;jobScore+=7;}
+  const hasReadme=repos.some(r=>r.name?.toLowerCase()===p.username?.toLowerCase());
+  if(!hasReadme)issues.push({icon:'📄',severity:'high',title:'No Profile README',desc:'A profile README is the #1 thing that makes recruiters stop at your profile.',fix:`Create a repo named exactly "${p.username}" and add a README.md.`});
+  else{placementScore+=10;jobScore+=15;}
+  placementScore=Math.min(100,placementScore);jobScore=Math.min(100,jobScore);
 
-  // Check repos
-  if (repos.length === 0) issues.push({ icon:'🏜️', severity:'critical', title:'Zero Public Repositories!', desc:'Your GitHub is a ghost town. No repos means no proof you can code. This is a deal breaker for any job.', fix:'Push at least 3-5 projects publicly. They do not have to be perfect — just real.' });
-  else if (repos.length < 3) issues.push({ icon:'📦', severity:'high', title:`Only ${repos.length} Public Repo(s)`, desc:'With less than 3 repos, your profile looks abandoned. Recruiters want to see consistent work.', fix:'Aim for at least 6-10 public repos showing different skills and project types.' });
-  else { placementScore += 20; jobScore += 15; }
+  const badgesGuide=[{name:'Pull Shark',how:'Get PRs merged. Bronze=2, Silver=16, Gold=128 merged PRs',difficulty:'Medium'},{name:'YOLO',how:'Merge your own PR without a review on your own repo',difficulty:'Easy'},{name:'Quickdraw',how:'Close an issue or PR within 5 minutes of opening it',difficulty:'Very Easy'},{name:'Starstruck',how:'Get 16 stars on one repo. Silver=128 stars, Gold=512',difficulty:'Hard'},{name:'Pair Extraordinaire',how:'Co-author commits in merged PRs using git co-author',difficulty:'Medium'},{name:'Galaxy Brain',how:'Answer a Discussion marked as the accepted answer',difficulty:'Medium'},{name:'Public Sponsor',how:'Sponsor an open source contributor via GitHub Sponsors',difficulty:'Easy (paid)'}];
 
-  // Check repo descriptions
-  const noDesc = repos.filter(r => !r.description || r.description.length < 5).length;
-  if (noDesc > 0) issues.push({ icon:'📝', severity:'medium', title:`${noDesc} Repos Have No Description`, desc:'Repos without descriptions look abandoned and unprofessional. Nobody knows what your code does.', fix:'Click the gear icon on each repo and add a clear 1-line description of what it does.' });
-  else { placementScore += 10; jobScore += 10; }
+  const pieData=[{label:'Repositories',value:Math.min(repos.length*10,30)},{label:'Activity',value:Math.min(yearlyContribs/3,25)},{label:'Languages',value:Math.min(languages.length*8,20)},{label:'Profile Info',value:(p.bio?5:0)+(p.avatar_url&&!p.avatar_url.includes('gravatar')?5:0)+(p.location?3:0)+(p.blog?3:0)+(hasReadme?9:0)},{label:'Community',value:Math.min((p.followers||0)*2,15)}].filter(d=>d.value>0);
 
-  // Check streak
-  const currentStreak = streak?.current_streak_days || 0;
-  const yearlyContribs = streak?.yearly_contributions || 0;
-  if (currentStreak === 0 && yearlyContribs < 10) issues.push({ icon:'💤', severity:'critical', title:'You Are Not Coding Regularly!', desc:`Only ${yearlyContribs} contributions this year. Your activity graph is basically flat. This is a massive red flag for recruiters.`, fix:'Commit code every single day — even documentation updates count. Build the habit.' });
-  else if (yearlyContribs < 50) issues.push({ icon:'📉', severity:'high', title:'Low Contribution Activity', desc:`${yearlyContribs} contributions this year is below average. Consistent activity shows dedication.`, fix:'Set a daily coding goal. Even 30 minutes of coding and committing daily will transform your graph in 3 months.' });
-  else { placementScore += 20; jobScore += 20; }
+  const sortedIssues=[...issues].sort((a,b)=>({critical:0,high:1,medium:2,low:3}[a.severity]-{critical:0,high:1,medium:2,low:3}[b.severity]));
+  const sColor={critical:'#ef4444',high:'#fb923c',medium:'#fbbf24',low:'#60a5fa'};
+  const sBg={critical:'rgba(239,68,68,0.1)',high:'rgba(251,146,60,0.1)',medium:'rgba(251,191,36,0.1)',low:'rgba(96,165,250,0.1)'};
 
-  // Check languages
-  if (languages.length === 0) issues.push({ icon:'🤔', severity:'high', title:'No Programming Languages Detected', desc:'GitHub cannot detect any languages from your repos. This usually means your repos are empty or just contain text files.', fix:'Push actual code files (.py, .js, .java etc) to your repositories.' });
-  else if (languages.length === 1) issues.push({ icon:'🔧', severity:'medium', title:'Only One Language Used', desc:`You only show ${languages[0]?.language} skills. Tech companies want to see versatility.`, fix:'Build one project in a different language or framework to show you can learn new technologies.' });
-  else { placementScore += 15; jobScore += 15; }
-
-  // Check followers
-  if ((p.followers || 0) < 5) issues.push({ icon:'👻', severity:'low', title:'Almost No Followers', desc:'Low followers suggest you are not engaging with the developer community at all.', fix:'Star repositories you use, follow developers in your field, and contribute to open source.' });
-  else { placementScore += 7; jobScore += 7; }
-
-  // Check profile README
-  const hasReadme = repos.some(r => r.name?.toLowerCase() === p.username?.toLowerCase());
-  if (!hasReadme) issues.push({ icon:'📄', severity:'high', title:'No Profile README', desc:'A profile README is the #1 thing that makes senior developers and recruiters stop and look at your profile.', fix:`Create a repository named exactly "${p.username}" and add a README.md to it. This appears on your profile page.` });
-  else { placementScore += 10; jobScore += 15; }
-
-  // Placement score
-  placementScore = Math.min(100, placementScore);
-  jobScore = Math.min(100, jobScore);
-
-  // GitHub Badges guide
-  const badgesGuide = [
-    { name:'Arctic Code Vault Contributor', how:'Contribute to any public repo before February 2020 Arctic snapshot', difficulty:'Easy — historical' },
-    { name:'Pull Shark', how:'Open Pull Requests that get merged. Bronze = 2 merged PRs, Silver = 16, Gold = 128', difficulty:'Medium' },
-    { name:'YOLO', how:'Merge your own PR without a review', difficulty:'Easy — do it on your own repo' },
-    { name:'Quickdraw', how:'Close an issue or PR within 5 minutes of opening it', difficulty:'Very Easy' },
-    { name:'Starstruck', how:'Have a repository with 16 stars. Silver = 128 stars, Gold = 512 stars', difficulty:'Hard — needs popular project' },
-    { name:'Pair Extraordinaire', how:'Co-author commits in merged PRs using git commit co-author feature', difficulty:'Medium' },
-    { name:'Galaxy Brain', how:'Answer a Discussion that gets marked as the accepted answer', difficulty:'Medium' },
-    { name:'Public Sponsor', how:'Sponsor an open source contributor through GitHub Sponsors', difficulty:'Easy — requires payment' },
-  ];
-
-  // Pie chart data
-  const pieData = [
-    { label:'Repositories', value: Math.min(repos.length * 10, 30) },
-    { label:'Activity', value: Math.min(yearlyContribs / 3, 25) },
-    { label:'Languages', value: Math.min(languages.length * 8, 20) },
-    { label:'Profile Info', value: (p.bio?5:0)+(p.avatar_url&&!p.avatar_url.includes('gravatar')?5:0)+(p.location?3:0)+(p.blog?3:0)+(hasReadme?9:0) },
-    { label:'Community', value: Math.min((p.followers||0)*2, 15) },
-  ].filter(d => d.value > 0);
-
-  const severityOrder = { critical:0, high:1, medium:2, low:3 };
-  const sortedIssues = [...issues].sort((a,b) => severityOrder[a.severity] - severityOrder[b.severity]);
-
-  const severityColor = { critical:'#ef4444', high:'#fb923c', medium:'#fbbf24', low:'#60a5fa' };
-  const severityBg = { critical:'rgba(239,68,68,0.12)', high:'rgba(251,146,60,0.12)', medium:'rgba(251,191,36,0.12)', low:'rgba(96,165,250,0.12)' };
-
-  return (
-    <div style={{ display:'flex', flexDirection:'column', gap:'1.25rem', marginTop:'1.5rem' }}>
-
-      {/* Header */}
-      <div style={{ background:t.cardBg, border:`1px solid ${t.border}`, borderRadius:'1rem', padding:'1.25rem' }}>
-        <h2 style={{ margin:'0 0 0.25rem', color:t.text, fontSize:'1.2rem', fontWeight:800 }}>📊 Profile Reality Check</h2>
-        <p style={{ margin:0, color:t.subtext, fontSize:'0.88rem' }}>Here is the brutal honest truth about your GitHub profile @{p.username}</p>
+  return(
+    <div style={{display:'flex',flexDirection:'column',gap:'1.25rem',marginTop:'1.5rem'}}>
+      <div style={{background:t.cardBg,border:`1px solid ${t.border}`,borderRadius:'1rem',padding:'1.25rem'}}>
+        <h2 style={{margin:'0 0 0.25rem',color:t.text,fontSize:'1.2rem',fontWeight:800}}>📊 Profile Reality Check</h2>
+        <p style={{margin:0,color:t.subtext,fontSize:'0.88rem'}}>Brutal honest truth about @{p.username}'s GitHub profile</p>
       </div>
 
-      {/* Two column layout: left = issues, right = chart + scores */}
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 280px', gap:'1.25rem', alignItems:'start' }}>
-
-        {/* LEFT: Issues */}
-        <div style={{ display:'flex', flexDirection:'column', gap:'0.75rem' }}>
-          {sortedIssues.length === 0 ? (
-            <div style={{ background:t.cardBg, border:`1px solid ${t.accent}`, borderRadius:'1rem', padding:'1.5rem', textAlign:'center' }}>
-              <div style={{ fontSize:'2rem', marginBottom:'0.5rem' }}>🎉</div>
-              <div style={{ color:t.accent, fontWeight:700 }}>Excellent! No major issues found!</div>
-              <div style={{ color:t.subtext, fontSize:'0.85rem', marginTop:'0.25rem' }}>Your profile is in great shape. Keep it up!</div>
-            </div>
-          ) : sortedIssues.map((issue, i) => (
-            <div key={i} style={{ background:severityBg[issue.severity], border:`1px solid ${severityColor[issue.severity]}44`, borderRadius:'1rem', padding:'1rem', borderLeft:`4px solid ${severityColor[issue.severity]}` }}>
-              <div style={{ display:'flex', alignItems:'center', gap:'0.5rem', marginBottom:'0.4rem' }}>
-                <span style={{ fontSize:'1.2rem' }}>{issue.icon}</span>
-                <span style={{ color:severityColor[issue.severity], fontWeight:700, fontSize:'0.9rem' }}>{issue.title}</span>
-                <span style={{ marginLeft:'auto', padding:'0.1rem 0.5rem', borderRadius:'999px', fontSize:'0.68rem', fontWeight:700, textTransform:'uppercase', background:`${severityColor[issue.severity]}22`, color:severityColor[issue.severity], border:`1px solid ${severityColor[issue.severity]}44` }}>{issue.severity}</span>
-              </div>
-              <p style={{ margin:'0 0 0.5rem', color:t.text, fontSize:'0.85rem', lineHeight:1.6 }}>{issue.desc}</p>
-              <div style={{ background:`rgba(255,255,255,0.05)`, borderRadius:'0.5rem', padding:'0.5rem 0.75rem' }}>
-                <span style={{ color:t.accent, fontSize:'0.8rem', fontWeight:600 }}>✅ Fix: </span>
-                <span style={{ color:t.subtext, fontSize:'0.8rem' }}>{issue.fix}</span>
-              </div>
+      {/* Two column: issues left, charts right */}
+      <div style={{display:'grid',gridTemplateColumns:'1fr 280px',gap:'1.25rem',alignItems:'start'}}>
+        <div style={{display:'flex',flexDirection:'column',gap:'0.75rem'}}>
+          {sortedIssues.length===0?(<div style={{background:t.cardBg,border:`1px solid ${t.accent}`,borderRadius:'1rem',padding:'1.5rem',textAlign:'center'}}><div style={{fontSize:'2rem',marginBottom:'0.5rem'}}>🎉</div><div style={{color:t.accent,fontWeight:700}}>No major issues! Great profile!</div></div>):sortedIssues.map((issue,i)=>(
+            <div key={i} style={{background:sBg[issue.severity],border:`1px solid ${sColor[issue.severity]}44`,borderRadius:'1rem',padding:'1rem',borderLeft:`4px solid ${sColor[issue.severity]}`}}>
+              <div style={{display:'flex',alignItems:'center',gap:'0.5rem',marginBottom:'0.4rem'}}><span style={{fontSize:'1.2rem'}}>{issue.icon}</span><span style={{color:sColor[issue.severity],fontWeight:700,fontSize:'0.9rem'}}>{issue.title}</span><span style={{marginLeft:'auto',padding:'0.1rem 0.5rem',borderRadius:'999px',fontSize:'0.68rem',fontWeight:700,textTransform:'uppercase',background:`${sColor[issue.severity]}22`,color:sColor[issue.severity]}}>{issue.severity}</span></div>
+              <p style={{margin:'0 0 0.5rem',color:t.text,fontSize:'0.85rem',lineHeight:1.6}}>{issue.desc}</p>
+              <div style={{background:'rgba(255,255,255,0.05)',borderRadius:'0.5rem',padding:'0.5rem 0.75rem'}}><span style={{color:t.accent,fontSize:'0.8rem',fontWeight:600}}>✅ Fix: </span><span style={{color:t.subtext,fontSize:'0.8rem'}}>{issue.fix}</span></div>
             </div>
           ))}
-
           {/* Badges Guide */}
-          <div style={{ background:t.cardBg, border:`1px solid ${t.border}`, borderRadius:'1rem', padding:'1.25rem' }}>
-            <h3 style={{ margin:'0 0 1rem', color:t.accent, fontSize:'0.85rem', textTransform:'uppercase', letterSpacing:'0.1em' }}>🏅 How to Earn GitHub Badges</h3>
-            <div style={{ display:'flex', flexDirection:'column', gap:'0.6rem' }}>
-              {badgesGuide.map((badge, i) => (
-                <div key={i} style={{ padding:'0.75rem', background:`rgba(255,255,255,0.03)`, borderRadius:'0.75rem', border:`1px solid ${t.border}` }}>
-                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'0.25rem' }}>
-                    <span style={{ color:t.text, fontWeight:600, fontSize:'0.85rem' }}>{badge.name}</span>
-                    <span style={{ padding:'0.1rem 0.5rem', borderRadius:'999px', fontSize:'0.68rem', background:`${t.accent}22`, color:t.accent, border:`1px solid ${t.accent}44` }}>{badge.difficulty}</span>
-                  </div>
-                  <p style={{ margin:0, color:t.subtext, fontSize:'0.8rem' }}>{badge.how}</p>
-                </div>
-              ))}
-            </div>
+          <div style={{background:t.cardBg,border:`1px solid ${t.border}`,borderRadius:'1rem',padding:'1.25rem'}}>
+            <h3 style={{margin:'0 0 1rem',color:t.accent,fontSize:'0.85rem',textTransform:'uppercase',letterSpacing:'0.1em'}}>🏅 How to Earn GitHub Badges</h3>
+            {badgesGuide.map((badge,i)=>(<div key={i} style={{padding:'0.65rem',background:'rgba(255,255,255,0.03)',borderRadius:'0.75rem',border:`1px solid ${t.border}`,marginBottom:'0.5rem'}}><div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'0.2rem'}}><span style={{color:t.text,fontWeight:600,fontSize:'0.85rem'}}>{badge.name}</span><span style={{padding:'0.1rem 0.5rem',borderRadius:'999px',fontSize:'0.68rem',background:`${t.accent}22`,color:t.accent}}>{badge.difficulty}</span></div><p style={{margin:0,color:t.subtext,fontSize:'0.8rem'}}>{badge.how}</p></div>))}
           </div>
         </div>
 
-        {/* RIGHT: Pie chart + Career scores */}
-        <div style={{ display:'flex', flexDirection:'column', gap:'1rem', position:'sticky', top:'5rem' }}>
-
-          {/* Pie Chart */}
-          <div style={{ background:t.cardBg, border:`1px solid ${t.border}`, borderRadius:'1rem', padding:'1.25rem' }}>
-            <h3 style={{ margin:'0 0 1rem', color:t.accent, fontSize:'0.82rem', textTransform:'uppercase', letterSpacing:'0.1em' }}>Profile Breakdown</h3>
-            <PieChart data={pieData} size={160} t={t} />
+        {/* Right column: pie + scores + stats */}
+        <div style={{display:'flex',flexDirection:'column',gap:'1rem',position:'sticky',top:'5rem'}}>
+          <div style={{background:t.cardBg,border:`1px solid ${t.border}`,borderRadius:'1rem',padding:'1.25rem'}}>
+            <h3 style={{margin:'0 0 1rem',color:t.accent,fontSize:'0.82rem',textTransform:'uppercase',letterSpacing:'0.1em'}}>Profile Breakdown</h3>
+            <PieChart data={pieData} size={160} t={t}/>
           </div>
-
-          {/* Placement Score */}
-          <div style={{ background:t.cardBg, border:`1px solid ${t.border}`, borderRadius:'1rem', padding:'1.25rem' }}>
-            <h3 style={{ margin:'0 0 1rem', color:t.accent, fontSize:'0.82rem', textTransform:'uppercase', letterSpacing:'0.1em' }}>Career Readiness</h3>
-            {[
-              { label:'Placement Ready', score:placementScore, color: placementScore>=70?'#4ade80':placementScore>=40?'#fbbf24':'#ef4444' },
-              { label:'Job Market Ready', score:jobScore, color: jobScore>=70?'#4ade80':jobScore>=40?'#fbbf24':'#ef4444' },
-            ].map(item => (
-              <div key={item.label} style={{ marginBottom:'0.85rem' }}>
-                <div style={{ display:'flex', justifyContent:'space-between', fontSize:'0.82rem', marginBottom:'0.3rem' }}>
-                  <span style={{ color:t.text, fontWeight:600 }}>{item.label}</span>
-                  <span style={{ color:item.color, fontWeight:700 }}>{item.score}%</span>
-                </div>
-                <div style={{ height:'0.5rem', borderRadius:'999px', background:t.border }}>
-                  <div style={{ height:'100%', borderRadius:'999px', background:item.color, width:`${item.score}%`, transition:'width 1s ease' }}/>
-                </div>
-                <div style={{ color:t.subtext, fontSize:'0.72rem', marginTop:'0.2rem' }}>
-                  {item.score>=70?'✅ Ready for opportunities!':item.score>=40?'⚡ Almost there, keep improving':'❌ Needs significant improvement'}
-                </div>
-              </div>
-            ))}
+          <div style={{background:t.cardBg,border:`1px solid ${t.border}`,borderRadius:'1rem',padding:'1.25rem'}}>
+            <h3 style={{margin:'0 0 1rem',color:t.accent,fontSize:'0.82rem',textTransform:'uppercase',letterSpacing:'0.1em'}}>Career Readiness</h3>
+            {[{label:'Placement Ready',score:placementScore},{label:'Job Market Ready',score:jobScore}].map(item=>(<div key={item.label} style={{marginBottom:'0.85rem'}}><div style={{display:'flex',justifyContent:'space-between',fontSize:'0.82rem',marginBottom:'0.3rem'}}><span style={{color:t.text,fontWeight:600}}>{item.label}</span><span style={{color:item.score>=70?'#4ade80':item.score>=40?'#fbbf24':'#f87171',fontWeight:700}}>{item.score}%</span></div><div style={{height:'0.5rem',borderRadius:'999px',background:t.border}}><div style={{height:'100%',borderRadius:'999px',background:item.score>=70?'#4ade80':item.score>=40?'#fbbf24':'#f87171',width:`${item.score}%`,transition:'width 1s ease'}}/></div><div style={{color:t.subtext,fontSize:'0.72rem',marginTop:'0.2rem'}}>{item.score>=70?'✅ Ready!':item.score>=40?'⚡ Almost there':'❌ Needs work'}</div></div>))}
           </div>
-
-          {/* Quick Stats */}
-          <div style={{ background:t.cardBg, border:`1px solid ${t.border}`, borderRadius:'1rem', padding:'1.25rem' }}>
-            <h3 style={{ margin:'0 0 0.75rem', color:t.accent, fontSize:'0.82rem', textTransform:'uppercase', letterSpacing:'0.1em' }}>Quick Stats</h3>
-            {[
-              { label:'Public Repos', value:repos.length, good: repos.length>=5 },
-              { label:'Followers', value:p.followers||0, good:(p.followers||0)>=10 },
-              { label:'Contributions', value:yearlyContribs+' this yr', good:yearlyContribs>=50 },
-              { label:'Languages', value:languages.length, good:languages.length>=2 },
-              { label:'Current Streak', value:currentStreak+' days', good:currentStreak>=3 },
-            ].map(stat => (
-              <div key={stat.label} style={{ display:'flex', justifyContent:'space-between', padding:'0.35rem 0', borderBottom:`1px solid ${t.border}` }}>
-                <span style={{ color:t.subtext, fontSize:'0.8rem' }}>{stat.label}</span>
-                <span style={{ color:stat.good?'#4ade80':'#f87171', fontSize:'0.8rem', fontWeight:600 }}>{stat.value} {stat.good?'✓':'✗'}</span>
-              </div>
-            ))}
+          <div style={{background:t.cardBg,border:`1px solid ${t.border}`,borderRadius:'1rem',padding:'1.25rem'}}>
+            <h3 style={{margin:'0 0 0.75rem',color:t.accent,fontSize:'0.82rem',textTransform:'uppercase',letterSpacing:'0.1em'}}>Quick Stats</h3>
+            {[{label:'Public Repos',value:repos.length,good:repos.length>=5},{label:'Followers',value:p.followers||0,good:(p.followers||0)>=10},{label:'Yearly Commits',value:yearlyContribs,good:yearlyContribs>=50},{label:'Languages',value:languages.length,good:languages.length>=2},{label:'Streak',value:`${currentStreak} days`,good:currentStreak>=3}].map(stat=>(<div key={stat.label} style={{display:'flex',justifyContent:'space-between',padding:'0.35rem 0',borderBottom:`1px solid ${t.border}`}}><span style={{color:t.subtext,fontSize:'0.8rem'}}>{stat.label}</span><span style={{color:stat.good?'#4ade80':'#f87171',fontSize:'0.8rem',fontWeight:600}}>{stat.value} {stat.good?'✓':'✗'}</span></div>))}
           </div>
         </div>
       </div>
@@ -283,534 +163,261 @@ function ProfileRealityCheck({ profile, languages, repos, streak, aiAnalysis, t 
 }
 
 // ── Auth Page ──────────────────────────────────────────────────────────────
-function AuthPage({onLogin,theme}){
-  const t=THEMES[theme];
-  const [tab,setTab]=useState('login');
-  const [fullName,setFullName]=useState('');
-  const [email,setEmail]=useState('');
-  const [password,setPassword]=useState('');
-  const [confirmPassword,setConfirmPassword]=useState('');
-  const [showPassword,setShowPassword]=useState(false);
-  const [showConfirm,setShowConfirm]=useState(false);
-  const [authError,setAuthError]=useState('');
-  const [toast,setToast]=useState('');
-  const handleSubmit=()=>{
-    setAuthError('');
-    if(tab==='signup'){
-      if(!fullName.trim()){setAuthError('Please enter your full name.');return;}
-      if(!email.trim()){setAuthError('Please enter your email.');return;}
-      if(password.length<6){setAuthError('Password must be at least 6 characters.');return;}
-      if(password!==confirmPassword){setAuthError('Passwords do not match.');return;}
-      const ex=localStorage.getItem('gpa-email');
-      if(ex&&ex===email.trim()){setAuthError('Account already exists. Please sign in.');setTab('login');return;}
-      localStorage.setItem('gpa-username',fullName.trim());localStorage.setItem('gpa-email',email.trim());localStorage.setItem('gpa-password',password);
-      onLogin(fullName.trim(),email.trim(),true);
-    } else {
-      if(!email.trim()||!password.trim()){setAuthError('Please fill in all fields.');return;}
-      const se=localStorage.getItem('gpa-email'),sp=localStorage.getItem('gpa-password');
-      if(!se){setAuthError('No account found. Please create an account first.');return;}
-      if(se!==email.trim()){setAuthError('No account found with this email.');return;}
-      if(sp!==password){setAuthError('Incorrect password.');return;}
-      const sn=localStorage.getItem('gpa-username')||email.split('@')[0];
-      onLogin(sn,email.trim(),false);
-    }
-  };
+function AuthPage({onLogin,theme,lang}){
+  const t=THEMES[theme];const [tab,setTab]=useState('login');const [fullName,setFullName]=useState('');const [email,setEmail]=useState('');const [password,setPassword]=useState('');const [confirmPassword,setConfirmPassword]=useState('');const [showPassword,setShowPassword]=useState(false);const [showConfirm,setShowConfirm]=useState(false);const [authError,setAuthError]=useState('');const [toast,setToast]=useState('');
+  const handleSubmit=()=>{setAuthError('');if(tab==='signup'){if(!fullName.trim()){setAuthError('Please enter your full name.');return;}if(!email.trim()){setAuthError('Please enter your email.');return;}if(password.length<6){setAuthError('Password must be at least 6 characters.');return;}if(password!==confirmPassword){setAuthError('Passwords do not match.');return;}const ex=localStorage.getItem('gpa-email');if(ex&&ex===email.trim()){setAuthError('Account already exists. Please sign in.');setTab('login');return;}localStorage.setItem('gpa-username',fullName.trim());localStorage.setItem('gpa-email',email.trim());localStorage.setItem('gpa-password',password);onLogin(fullName.trim(),email.trim(),true);}else{if(!email.trim()||!password.trim()){setAuthError('Please fill in all fields.');return;}const se=localStorage.getItem('gpa-email'),sp=localStorage.getItem('gpa-password');if(!se){setAuthError('No account found. Please create an account first.');return;}if(se!==email.trim()){setAuthError('No account found with this email.');return;}if(sp!==password){setAuthError('Incorrect password.');return;}const sn=localStorage.getItem('gpa-username')||email.split('@')[0];onLogin(sn,email.trim(),false);}};
   const inp={background:t.cardBg,color:t.text,borderColor:t.border};
-  return(
-    <div className="auth-overlay" style={{background:`radial-gradient(circle at 30% 20%,${t.accent}22,transparent 60%),radial-gradient(circle at 70% 80%,${t.accent2}22,transparent 60%),${t.bg}`}}>
-      {toast&&<Toast message={toast} onClose={()=>setToast('')}/>}
-      <div className="auth-floating-logo"><AnimatedGitHubLogo size={52} color={t.accent}/><h2 style={{color:t.text,margin:'0.75rem 0 0',fontSize:'1.4rem',fontWeight:700,letterSpacing:'-0.02em'}}>GitHub Profile Analyzer</h2><p style={{color:t.subtext,margin:'0.25rem 0 0',fontSize:'0.9rem'}}>AI-powered GitHub insights</p></div>
-      <div className="auth-card" style={{background:t.containerBg,border:`1px solid ${t.border}`}}>
-        <div className="auth-tabs" style={{borderBottom:`1px solid ${t.border}`}}>{[['login','Sign In'],['signup','Create Account']].map(([k,label])=>(<button key={k} className="auth-tab" onClick={()=>{setTab(k);setAuthError('');}} style={{color:tab===k?t.accent:t.subtext,borderBottom:tab===k?`2px solid ${t.accent}`:'2px solid transparent',fontWeight:tab===k?700:400}}>{label}</button>))}</div>
-        <div className="auth-social">
-          <button className="social-btn" onClick={()=>setToast('Google login coming soon! 🚀')} style={{border:`1px solid ${t.border}`,color:t.text,background:t.cardBg}}>
-            <svg viewBox="0 0 24 24" width="18" height="18" style={{marginRight:'0.5rem',flexShrink:0}}><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
-            Continue with Google
-          </button>
-          <button className="social-btn" onClick={()=>setToast('GitHub login coming soon! 🚀')} style={{border:`1px solid ${t.border}`,color:t.text,background:t.cardBg}}><AnimatedGitHubLogo size={18} color={t.text}/><span style={{marginLeft:'0.5rem'}}>Continue with GitHub</span></button>
-        </div>
-        <div className="auth-divider" style={{color:t.subtext}}><span style={{background:t.containerBg,padding:'0 0.75rem',position:'relative',zIndex:1}}>or continue with email</span></div>
-        {authError&&<p className="auth-error">{authError}</p>}
-        <div className="auth-fields">
-          {tab==='signup'&&<input className="auth-input" type="text" placeholder="Full name" value={fullName} onChange={e=>setFullName(e.target.value)} style={inp}/>}
-          <input className="auth-input" type="email" placeholder="Email address" value={email} onChange={e=>setEmail(e.target.value)} style={inp} onKeyDown={e=>e.key==='Enter'&&handleSubmit()}/>
-          <div style={{position:'relative'}}><input className="auth-input" type={showPassword?'text':'password'} placeholder="Password" value={password} onChange={e=>setPassword(e.target.value)} style={{...inp,paddingRight:'3rem',width:'100%',boxSizing:'border-box'}} onKeyDown={e=>e.key==='Enter'&&handleSubmit()}/><button onClick={()=>setShowPassword(p=>!p)} style={{position:'absolute',right:'0.75rem',top:'50%',transform:'translateY(-50%)',background:'none',border:'none',cursor:'pointer',color:t.subtext,fontSize:'1rem',padding:0}}>{showPassword?'🙈':'👁️'}</button></div>
-          {tab==='signup'&&(<div style={{position:'relative'}}><input className="auth-input" type={showConfirm?'text':'password'} placeholder="Re-enter password" value={confirmPassword} onChange={e=>setConfirmPassword(e.target.value)} style={{...inp,paddingRight:'3rem',width:'100%',boxSizing:'border-box',borderColor:confirmPassword&&confirmPassword!==password?'#f87171':t.border}} onKeyDown={e=>e.key==='Enter'&&handleSubmit()}/><button onClick={()=>setShowConfirm(p=>!p)} style={{position:'absolute',right:'0.75rem',top:'50%',transform:'translateY(-50%)',background:'none',border:'none',cursor:'pointer',color:t.subtext,fontSize:'1rem',padding:0}}>{showConfirm?'🙈':'👁️'}</button>{confirmPassword&&confirmPassword!==password&&<p style={{color:'#f87171',fontSize:'0.78rem',margin:'0.25rem 0 0 0.25rem'}}>Passwords do not match</p>}</div>)}
-        </div>
-        <button className="auth-submit-btn" onClick={handleSubmit} style={{background:t.btnBg}}>{tab==='login'?'Sign In':'Create Account'}</button>
-        <button className="auth-guest-btn" onClick={()=>onLogin('Guest','',false)} style={{color:t.subtext,borderColor:t.border}}>Continue as Guest</button>
-        {tab==='login'&&(<p style={{textAlign:'center',fontSize:'0.85rem',color:t.subtext,margin:0}}>Don't have an account?{' '}<button onClick={()=>{setTab('signup');setAuthError('');}} style={{background:'none',border:'none',color:t.accent,cursor:'pointer',fontWeight:600,fontSize:'0.85rem',padding:0}}>Sign up</button></p>)}
-        {tab==='signup'&&(<p style={{textAlign:'center',fontSize:'0.85rem',color:t.subtext,margin:0}}>Already have an account?{' '}<button onClick={()=>{setTab('login');setAuthError('');}} style={{background:'none',border:'none',color:t.accent,cursor:'pointer',fontWeight:600,fontSize:'0.85rem',padding:0}}>Sign in</button></p>)}
-      </div>
-    </div>
-  );
+  return(<div className="auth-overlay" style={{background:`radial-gradient(circle at 30% 20%,${t.accent}22,transparent 60%),radial-gradient(circle at 70% 80%,${t.accent2}22,transparent 60%),${t.bg}`}}>{toast&&<Toast message={toast} onClose={()=>setToast('')}/>}<div className="auth-floating-logo"><AnimatedGitHubLogo size={52} color={t.accent}/><h2 style={{color:t.text,margin:'0.75rem 0 0',fontSize:'1.4rem',fontWeight:700,letterSpacing:'-0.02em'}}>{tr(lang,'appName')}</h2><p style={{color:t.subtext,margin:'0.25rem 0 0',fontSize:'0.9rem'}}>AI-powered GitHub insights</p></div><div className="auth-card" style={{background:t.containerBg,border:`1px solid ${t.border}`}}><div className="auth-tabs" style={{borderBottom:`1px solid ${t.border}`}}>{[['login',tr(lang,'signIn')],['signup',tr(lang,'createAccount')]].map(([k,label])=>(<button key={k} className="auth-tab" onClick={()=>{setTab(k);setAuthError('');}} style={{color:tab===k?t.accent:t.subtext,borderBottom:tab===k?`2px solid ${t.accent}`:'2px solid transparent',fontWeight:tab===k?700:400}}>{label}</button>))}</div><div className="auth-social"><button className="social-btn" onClick={()=>setToast('Google login coming soon! 🚀')} style={{border:`1px solid ${t.border}`,color:t.text,background:t.cardBg}}><svg viewBox="0 0 24 24" width="18" height="18" style={{marginRight:'0.5rem',flexShrink:0}}><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>Continue with Google</button><button className="social-btn" onClick={()=>setToast('GitHub login coming soon! 🚀')} style={{border:`1px solid ${t.border}`,color:t.text,background:t.cardBg}}><AnimatedGitHubLogo size={18} color={t.text}/><span style={{marginLeft:'0.5rem'}}>Continue with GitHub</span></button></div><div className="auth-divider" style={{color:t.subtext}}><span style={{background:t.containerBg,padding:'0 0.75rem',position:'relative',zIndex:1}}>or continue with email</span></div>{authError&&<p className="auth-error">{authError}</p>}<div className="auth-fields">{tab==='signup'&&<input className="auth-input" type="text" placeholder={tr(lang,'fullName')} value={fullName} onChange={e=>setFullName(e.target.value)} style={inp}/>}<input className="auth-input" type="email" placeholder={tr(lang,'emailAddress')} value={email} onChange={e=>setEmail(e.target.value)} style={inp} onKeyDown={e=>e.key==='Enter'&&handleSubmit()}/><div style={{position:'relative'}}><input className="auth-input" type={showPassword?'text':'password'} placeholder={tr(lang,'password')} value={password} onChange={e=>setPassword(e.target.value)} style={{...inp,paddingRight:'3rem',width:'100%',boxSizing:'border-box'}} onKeyDown={e=>e.key==='Enter'&&handleSubmit()}/><button onClick={()=>setShowPassword(p=>!p)} style={{position:'absolute',right:'0.75rem',top:'50%',transform:'translateY(-50%)',background:'none',border:'none',cursor:'pointer',color:t.subtext,fontSize:'1rem',padding:0}}>{showPassword?'🙈':'👁️'}</button></div>{tab==='signup'&&(<div style={{position:'relative'}}><input className="auth-input" type={showConfirm?'text':'password'} placeholder={tr(lang,'reEnterPassword')} value={confirmPassword} onChange={e=>setConfirmPassword(e.target.value)} style={{...inp,paddingRight:'3rem',width:'100%',boxSizing:'border-box',borderColor:confirmPassword&&confirmPassword!==password?'#f87171':t.border}} onKeyDown={e=>e.key==='Enter'&&handleSubmit()}/><button onClick={()=>setShowConfirm(p=>!p)} style={{position:'absolute',right:'0.75rem',top:'50%',transform:'translateY(-50%)',background:'none',border:'none',cursor:'pointer',color:t.subtext,fontSize:'1rem',padding:0}}>{showConfirm?'🙈':'👁️'}</button>{confirmPassword&&confirmPassword!==password&&<p style={{color:'#f87171',fontSize:'0.78rem',margin:'0.25rem 0 0 0.25rem'}}>Passwords do not match</p>}</div>)}</div><button className="auth-submit-btn" onClick={handleSubmit} style={{background:t.btnBg}}>{tab==='login'?tr(lang,'signIn'):tr(lang,'createAccount')}</button><button className="auth-guest-btn" onClick={()=>onLogin('Guest','',false)} style={{color:t.subtext,borderColor:t.border}}>{tr(lang,'continueAsGuest')}</button>{tab==='login'&&(<p style={{textAlign:'center',fontSize:'0.85rem',color:t.subtext,margin:0}}>Don't have an account?{' '}<button onClick={()=>{setTab('signup');setAuthError('');}} style={{background:'none',border:'none',color:t.accent,cursor:'pointer',fontWeight:600,fontSize:'0.85rem',padding:0}}>Sign up</button></p>)}{tab==='signup'&&(<p style={{textAlign:'center',fontSize:'0.85rem',color:t.subtext,margin:0}}>Already have an account?{' '}<button onClick={()=>{setTab('login');setAuthError('');}} style={{background:'none',border:'none',color:t.accent,cursor:'pointer',fontWeight:600,fontSize:'0.85rem',padding:0}}>Sign in</button></p>)}</div></div>);
 }
 
 // ── Onboarding ─────────────────────────────────────────────────────────────
 const ROLES=['Student','Professor','Teacher','Developer','Learner'];
 const LEVELS=['Beginner','Intermediate','Skilled'];
 const GENDERS=['Male','Female','Others'];
-function OnboardingSlides({userName,onComplete,theme}){
-  const t=THEMES[theme];
-  const [step,setStep]=useState(0);
-  const [role,setRole]=useState('');
-  const [level,setLevel]=useState('');
-  const [gender,setGender]=useState('');
-  const slides=[
-    {title:`Welcome, ${userName}!`,subtitle:"Let's personalize your experience.",question:'What best describes you?',content:<div className="onboard-options">{ROLES.map(r=><button key={r} className="onboard-option" onClick={()=>setRole(r)} style={{border:`1px solid ${role===r?t.accent:t.border}`,color:role===r?t.accent:t.text,background:role===r?`${t.accent}18`:t.cardBg,fontWeight:role===r?600:400}}>{r}</button>)}</div>,canNext:!!role},
-    {title:'Your Gender',subtitle:'Help us personalize your avatar.',question:'How do you identify?',content:<div className="onboard-options">{GENDERS.map(g=><button key={g} className="onboard-option" onClick={()=>setGender(g)} style={{border:`1px solid ${gender===g?t.accent:t.border}`,color:gender===g?t.accent:t.text,background:gender===g?`${t.accent}18`:t.cardBg,fontWeight:gender===g?600:400}}>{g}</button>)}</div>,canNext:!!gender},
-    {title:'Your Experience Level',subtitle:"We'll tailor tips to match your knowledge.",question:'How experienced are you with GitHub?',content:<div className="onboard-options">{LEVELS.map(l=><button key={l} className="onboard-option" onClick={()=>setLevel(l)} style={{border:`1px solid ${level===l?t.accent:t.border}`,color:level===l?t.accent:t.text,background:level===l?`${t.accent}18`:t.cardBg,fontWeight:level===l?600:400}}>{l}</button>)}</div>,canNext:!!level},
-    {title:"You're all set!",subtitle:`${role} · ${gender} · ${level}`,question:'',content:<div style={{textAlign:'center',padding:'1.5rem 0'}}><div style={{fontSize:'3.5rem',marginBottom:'1rem',animation:'floatLogo 2s ease-in-out infinite'}}>🚀</div><p style={{color:t.subtext,fontSize:'0.95rem',lineHeight:1.6}}>Start exploring GitHub profiles, get AI insights, and grow your developer presence.</p></div>,canNext:true},
-  ];
-  const current=slides[step];
-  return(<div className="onboard-overlay" style={{background:`radial-gradient(circle at 30% 20%,${t.accent}22,transparent 60%),${t.bg}`}}><div className="onboard-card" style={{background:t.containerBg,border:`1px solid ${t.border}`}}><div className="onboard-progress">{slides.map((_,i)=><div key={i} className="onboard-dot" style={{background:i<=step?t.accent:t.border,width:i===step?'2rem':'0.5rem',transition:'all 0.3s ease'}}/>)}</div>{current.question&&<p className="onboard-question" style={{color:t.subtext}}>{current.question}</p>}<h2 className="onboard-title" style={{color:t.text}}>{current.title}</h2><p className="onboard-subtitle" style={{color:t.subtext}}>{current.subtitle}</p>{current.content}<div className="onboard-actions">{step>0&&<button className="onboard-back-btn" onClick={()=>setStep(s=>s-1)} style={{color:t.subtext,borderColor:t.border}}>Back</button>}<button className="onboard-next-btn" onClick={()=>step<slides.length-1?setStep(s=>s+1):onComplete({role,gender,level})} disabled={!current.canNext} style={{background:current.canNext?t.btnBg:t.border,cursor:current.canNext?'pointer':'not-allowed',opacity:current.canNext?1:0.6}}>{step===slides.length-1?'Get Started':'Next'}</button></div></div></div>);
-}
+function OnboardingSlides({userName,onComplete,theme}){const t=THEMES[theme];const [step,setStep]=useState(0);const [role,setRole]=useState('');const [level,setLevel]=useState('');const [gender,setGender]=useState('');const slides=[{title:`Welcome, ${userName}!`,subtitle:"Let's personalize your experience.",question:'What best describes you?',content:<div className="onboard-options">{ROLES.map(r=><button key={r} className="onboard-option" onClick={()=>setRole(r)} style={{border:`1px solid ${role===r?t.accent:t.border}`,color:role===r?t.accent:t.text,background:role===r?`${t.accent}18`:t.cardBg,fontWeight:role===r?600:400}}>{r}</button>)}</div>,canNext:!!role},{title:'Your Gender',subtitle:'Helps us personalize your avatar.',question:'How do you identify?',content:<div className="onboard-options">{GENDERS.map(g=><button key={g} className="onboard-option" onClick={()=>setGender(g)} style={{border:`1px solid ${gender===g?t.accent:t.border}`,color:gender===g?t.accent:t.text,background:gender===g?`${t.accent}18`:t.cardBg,fontWeight:gender===g?600:400}}>{g}</button>)}</div>,canNext:!!gender},{title:'Your Experience Level',subtitle:"We'll tailor tips to match your knowledge.",question:'How experienced are you with GitHub?',content:<div className="onboard-options">{LEVELS.map(l=><button key={l} className="onboard-option" onClick={()=>setLevel(l)} style={{border:`1px solid ${level===l?t.accent:t.border}`,color:level===l?t.accent:t.text,background:level===l?`${t.accent}18`:t.cardBg,fontWeight:level===l?600:400}}>{l}</button>)}</div>,canNext:!!level},{title:"You're all set!",subtitle:`${role} · ${gender} · ${level}`,question:'',content:<div style={{textAlign:'center',padding:'1.5rem 0'}}><div style={{fontSize:'3.5rem',marginBottom:'1rem',animation:'floatLogo 2s ease-in-out infinite'}}>🚀</div><p style={{color:t.subtext,fontSize:'0.95rem',lineHeight:1.6}}>Start exploring GitHub profiles, get AI insights, and grow your developer presence.</p></div>,canNext:true}];const current=slides[step];return(<div className="onboard-overlay" style={{background:`radial-gradient(circle at 30% 20%,${t.accent}22,transparent 60%),${t.bg}`}}><div className="onboard-card" style={{background:t.containerBg,border:`1px solid ${t.border}`}}><div className="onboard-progress">{slides.map((_,i)=><div key={i} className="onboard-dot" style={{background:i<=step?t.accent:t.border,width:i===step?'2rem':'0.5rem',transition:'all 0.3s ease'}}/>)}</div>{current.question&&<p className="onboard-question" style={{color:t.subtext}}>{current.question}</p>}<h2 className="onboard-title" style={{color:t.text}}>{current.title}</h2><p className="onboard-subtitle" style={{color:t.subtext}}>{current.subtitle}</p>{current.content}<div className="onboard-actions">{step>0&&<button className="onboard-back-btn" onClick={()=>setStep(s=>s-1)} style={{color:t.subtext,borderColor:t.border}}>Back</button>}<button className="onboard-next-btn" onClick={()=>step<slides.length-1?setStep(s=>s+1):onComplete({role,gender,level})} disabled={!current.canNext} style={{background:current.canNext?t.btnBg:t.border,cursor:current.canNext?'pointer':'not-allowed',opacity:current.canNext?1:0.6}}>{step===slides.length-1?'Get Started':'Next'}</button></div></div></div>);}
 
 // ── Cards ──────────────────────────────────────────────────────────────────
-function ProfileCard({profile}){
-  const has=profile&&profile.username;
-  return(<div className="result-card profile-card"><div className="result-card-header"><h3>Profile</h3></div><div className="profile-card-body"><div className="profile-avatar" style={has&&profile.avatar_url?{backgroundImage:`url(${profile.avatar_url})`,backgroundSize:'cover',backgroundPosition:'center'}:undefined}/><div className="profile-meta"><div className="profile-name">{has?profile.name||profile.username:'GitHub User'}</div><div className="profile-username">{has?`@${profile.username}`:'@username'}</div><p className="profile-bio">{has?profile.bio||'No bio yet.':'Bio appears here.'}</p><div className="profile-stats"><span><strong>{has?profile.followers??0:0}</strong> Followers</span><span><strong>{has?profile.following??0:0}</strong> Following</span></div></div></div></div>);
-}
-function TopLanguagesCard({languages}){
-  const has=languages&&languages.length>0;
-  return(<div className="result-card languages-card"><div className="result-card-header"><h3>Top Languages</h3></div><div className="languages-placeholder"><div className="language-bar background"/><div className="language-bar foreground"/>{has?<p>{languages.map(l=><span key={l.language} style={{marginRight:'0.75rem'}}><strong>{l.language}</strong> {l.percentage}%</span>)}</p>:<p>Language distribution will appear here.</p>}</div></div>);
-}
+function ProfileCard({profile,lang}){const has=profile&&profile.username;return(<div className="result-card profile-card"><div className="result-card-header"><h3>Profile</h3></div><div className="profile-card-body"><div className="profile-avatar" style={has&&profile.avatar_url?{backgroundImage:`url(${profile.avatar_url})`,backgroundSize:'cover',backgroundPosition:'center'}:undefined}/><div className="profile-meta"><div className="profile-name">{has?profile.name||profile.username:'GitHub User'}</div><div className="profile-username">{has?`@${profile.username}`:'@username'}</div><p className="profile-bio">{has?profile.bio||tr(lang,'noBio'):tr(lang,'noBio')}</p><div className="profile-stats"><span><strong>{has?profile.followers??0:0}</strong> {tr(lang,'followers')}</span><span><strong>{has?profile.following??0:0}</strong> {tr(lang,'following')}</span></div></div></div></div>);}
+function TopLanguagesCard({languages}){const has=languages&&languages.length>0;return(<div className="result-card languages-card"><div className="result-card-header"><h3>Top Languages</h3></div><div className="languages-placeholder"><div className="language-bar background"/><div className="language-bar foreground"/>{has?<p>{languages.map(l=><span key={l.language} style={{marginRight:'0.75rem'}}><strong>{l.language}</strong> {l.percentage}%</span>)}</p>:<p>Language distribution will appear here.</p>}</div></div>);}
+
+// ── FIX: Show ALL repos with Show More toggle ──────────────────────────────
 function RepositoryHighlightsCard({repos}){
-  const display=(repos||[]).slice(0,3);
-  const ph=[{name:'awesome-project',stars:123,description:'Repository highlights appear here.'},{name:'api-service',stars:98,description:'Another top repository.'},{name:'ui-library',stars:76,description:'A third highlight.'}];
-  return(<div className="result-card repos-card"><div className="result-card-header"><h3>Repository Highlights</h3></div><ul className="repo-list">{(display.length>0?display:ph).map(repo=>(<li className="repo-item" key={repo.name}><div className="repo-main"><span className="repo-name">{repo.name}</span><span className="repo-stars">★ {repo.stars}</span></div><p className="repo-description">{repo.description||'No description.'}</p></li>))}</ul></div>);
+  const [showAll,setShowAll]=useState(false);
+  const all=repos||[];
+  const displayed=showAll?all:all.slice(0,6);
+  return(
+    <div className="result-card repos-card" style={{gridColumn:'1 / -1'}}>
+      <div className="result-card-header" style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+        <h3>Repository Highlights</h3>
+        <span style={{fontSize:'0.78rem',opacity:0.6}}>{all.length} total repos</span>
+      </div>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(260px,1fr))',gap:'0.75rem'}}>
+        {displayed.length>0?displayed.map(repo=>(
+          <div key={repo.name} style={{padding:'0.85rem',border:'1px solid rgba(255,255,255,0.08)',borderRadius:'0.75rem',background:'rgba(255,255,255,0.02)'}}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'0.25rem'}}>
+              <span className="repo-name" style={{fontSize:'0.88rem',fontWeight:600}}>{repo.name}</span>
+              <span className="repo-stars" style={{fontSize:'0.82rem'}}>★ {repo.stars||0}</span>
+            </div>
+            {repo.language&&<span style={{fontSize:'0.72rem',opacity:0.55,display:'block',marginBottom:'0.2rem'}}>📌 {repo.language}</span>}
+            <p className="repo-description" style={{margin:0,fontSize:'0.8rem'}}>
+              {repo.description||<span style={{opacity:0.45,fontStyle:'italic'}}>No description — add one!</span>}
+            </p>
+          </div>
+        )):(
+          <div style={{padding:'1rem',opacity:0.5,fontStyle:'italic'}}>No public repositories found.</div>
+        )}
+      </div>
+      {all.length>6&&(
+        <button onClick={()=>setShowAll(p=>!p)} style={{width:'100%',marginTop:'0.85rem',padding:'0.55rem',background:'transparent',border:'1px solid rgba(255,255,255,0.15)',borderRadius:'0.75rem',cursor:'pointer',opacity:0.65,fontSize:'0.85rem',color:'inherit'}}>
+          {showAll?'Show Less ↑':`Show All ${all.length} Repositories ↓`}
+        </button>
+      )}
+    </div>
+  );
 }
-function AiAnalysisCard({analysis,error}){
-  return(<div className="result-card ai-card"><div className="result-card-header"><div className="ai-header"><div className="ai-icon"><div className="ai-eye left"/><div className="ai-eye right"/></div><h3>AI Analysis</h3></div></div>{error&&<p className="ai-text">{error}</p>}{!error&&analysis&&(<div className="ai-text"><p><strong>Overall score:</strong> {analysis.overall_score??'N/A'} / 10</p><p><strong>Strengths:</strong></p><ul>{(analysis.top_strengths||[]).map((item,i)=><li key={i}>{item}</li>)}</ul><p><strong>Improvements:</strong></p><ul>{(analysis.top_improvements||[]).map((item,i)=><li key={i}>{item}</li>)}</ul><p><strong>Career insights:</strong> {analysis.career_insights||'—'}</p><p><strong>Weekly tip:</strong> {analysis.weekly_tip||'—'}</p></div>)}{!error&&!analysis&&<p className="ai-text">AI summary appears here after analysis.</p>}</div>);
-}
-function ContributionStreakCard({streak}){
-  const current=streak?.current_streak_days??0,longest=streak?.longest_streak_days??0,yearly=streak?.yearly_contributions??0;
-  let message='Start your streak today!';
-  if(current>=1&&current<=7)message='Great start! Keep going!';
-  else if(current>=8&&current<30)message="You're on fire!";
-  else if(current>=30)message='Unstoppable! Legend!';
-  return(<div className="result-card streak-card"><div className="result-card-header"><h3>Contribution Streak</h3></div><div className="streak-main"><div className="streak-badge"><span className="streak-fire">🔥</span><span className="streak-number">{current}</span><span className="streak-label">day streak</span></div><div className="streak-submetrics"><div><span className="streak-sub-label">Longest</span><span className="streak-sub-value">{longest} days</span></div><div><span className="streak-sub-label">This year</span><span className="streak-sub-value">{yearly}</span></div></div></div><p className="streak-message">{message}</p></div>);
-}
+
+function AiAnalysisCard({analysis,error}){return(<div className="result-card ai-card"><div className="result-card-header"><div className="ai-header"><div className="ai-icon"><div className="ai-eye left"/><div className="ai-eye right"/></div><h3>AI Analysis</h3></div></div>{error&&<p className="ai-text">{error}</p>}{!error&&analysis&&(<div className="ai-text"><p><strong>Overall score:</strong> {analysis.overall_score??'N/A'} / 10</p><p><strong>Strengths:</strong></p><ul>{(analysis.top_strengths||[]).map((item,i)=><li key={i}>{item}</li>)}</ul><p><strong>Improvements:</strong></p><ul>{(analysis.top_improvements||[]).map((item,i)=><li key={i}>{item}</li>)}</ul><p><strong>Career insights:</strong> {analysis.career_insights||'—'}</p><p><strong>Weekly tip:</strong> {analysis.weekly_tip||'—'}</p></div>)}{!error&&!analysis&&<p className="ai-text">AI summary appears here after analysis.</p>}</div>);}
+function ContributionStreakCard({streak}){const current=streak?.current_streak_days??0,longest=streak?.longest_streak_days??0,yearly=streak?.yearly_contributions??0;let message='Start your streak today!';if(current>=1&&current<=7)message='Great start! Keep going!';else if(current>=8&&current<30)message="You're on fire!";else if(current>=30)message='Unstoppable! Legend!';return(<div className="result-card streak-card"><div className="result-card-header"><h3>Contribution Streak</h3></div><div className="streak-main"><div className="streak-badge"><span className="streak-fire">🔥</span><span className="streak-number">{current}</span><span className="streak-label">day streak</span></div><div className="streak-submetrics"><div><span className="streak-sub-label">Longest</span><span className="streak-sub-value">{longest} days</span></div><div><span className="streak-sub-label">This year</span><span className="streak-sub-value">{yearly}</span></div></div></div><p className="streak-message">{message}</p></div>);}
 
 // ── Compare Section ────────────────────────────────────────────────────────
-function CompareSection({theme, language, isPremium, compareCount, setCompareCount, setView}) {
-  const tTheme = THEMES[theme];
-  const [user1, setUser1] = useState(''); const [user2, setUser2] = useState(''); const [isLoading, setIsLoading] = useState(false); const [result, setResult] = useState(null); const [error, setError] = useState('');
-  
-  const handleCompare = async () => {
-    if (!user1.trim() || !user2.trim()) { setError('Please enter both usernames.'); return; }
-    if (!isPremium && compareCount >= 3) {
-      setError('Free limit reached! You have used your 3 free comparisons.');
-      setTimeout(() => setView('subscription'), 2000);
-      return;
-    }
-    setIsLoading(true); setError(''); setResult(null);
-    try {
-      const resp = await axios.post(`http://127.0.0.1:8000/compare`, { username1: user1.trim(), username2: user2.trim() });
-      setResult(resp.data);
-      if (!isPremium) {
-        const newCount = compareCount + 1;
-        setCompareCount(newCount);
-        localStorage.setItem('gpa-compare-count', newCount.toString());
+function CompareSection({theme,lang,onPaywall}){
+  const t=THEMES[theme];const [user1,setUser1]=useState('');const [user2,setUser2]=useState('');const [isLoading,setIsLoading]=useState(false);const [result,setResult]=useState(null);const [error,setError]=useState('');const [activeTab,setActiveTab]=useState('overview');
+  const handleCompare=async()=>{if(!user1.trim()||!user2.trim()){setError('Please enter both usernames.');return;}if(!canCompare()){onPaywall('compare');return;}setIsLoading(true);setError('');setResult(null);try{const [r1,r2]=await Promise.all([axios.get(`${API}/analyze/${encodeURIComponent(user1.trim())}`),axios.get(`${API}/analyze/${encodeURIComponent(user2.trim())}`)]);incrementUsage('compare');setResult({p1:r1.data?.analysis?.profile||r1.data?.profile||{},p2:r2.data?.analysis?.profile||r2.data?.profile||{},a1:r1.data?.analysis?.ai_analysis||r1.data?.ai_analysis||{},a2:r2.data?.analysis?.ai_analysis||r2.data?.ai_analysis||{},l1:r1.data?.analysis?.top_languages||r1.data?.top_languages||[],l2:r2.data?.analysis?.top_languages||r2.data?.top_languages||[],repos1:r1.data?.analysis?.top_repositories||r1.data?.top_repositories||[],repos2:r2.data?.analysis?.top_repositories||r2.data?.top_repositories||[],streak1:r1.data?.analysis?.contribution_streak||r1.data?.contribution_streak||{},streak2:r2.data?.analysis?.contribution_streak||r2.data?.contribution_streak||{}});setActiveTab('overview');}catch{setError('Failed to compare. Make sure both usernames exist and backend is running.');}finally{setIsLoading(false);}};
+  const getVerdict=(r)=>{let s1=0,s2=0;if((r.p1.followers??0)>(r.p2.followers??0))s1++;else if((r.p2.followers??0)>(r.p1.followers??0))s2++;if((r.a1.overall_score??0)>(r.a2.overall_score??0))s1++;else if((r.a2.overall_score??0)>(r.a1.overall_score??0))s2++;if((r.streak1.current_streak_days??0)>(r.streak2.current_streak_days??0))s1++;else if((r.streak2.current_streak_days??0)>(r.streak1.current_streak_days??0))s2++;if((r.streak1.yearly_contributions??0)>(r.streak2.yearly_contributions??0))s1++;else if((r.streak2.yearly_contributions??0)>(r.streak1.yearly_contributions??0))s2++;if(r.repos1.length>r.repos2.length)s1++;else if(r.repos2.length>r.repos1.length)s2++;return{winner:s1>=s2?user1:user2,loser:s1>=s2?user2:user1,s1,s2};};
+  const analyzeProf=(p,langs,repos,streak,ai,username)=>{const has=[],missing=[],strengths=[],weaknesses=[];let profileScore=0;if(p.bio&&p.bio.length>5){has.push('Profile bio');strengths.push('Has a bio — visible to recruiters');profileScore+=10;}else{missing.push('Profile bio');weaknesses.push('No bio — invisible to 90% of recruiters');}if(p.avatar_url&&!p.avatar_url.includes('gravatar')){has.push('Profile picture');profileScore+=8;}else{missing.push('Profile picture');weaknesses.push('Using default avatar — unprofessional');}if(p.location){has.push('Location set');profileScore+=5;}else{missing.push('Location');weaknesses.push('No location — harder for local recruiters');}if(p.blog){has.push('Portfolio link');strengths.push('Has portfolio — extra credibility');profileScore+=7;}else{missing.push('Portfolio link');weaknesses.push('No portfolio — missed opportunity');}const hasReadme=repos.some(r=>r.name?.toLowerCase()===username?.toLowerCase());if(hasReadme){has.push('Profile README');strengths.push('Profile README — stands out on GitHub');profileScore+=15;}else{missing.push('Profile README');weaknesses.push('No profile README — biggest missed opportunity');}if(repos.length>=6){has.push(`${repos.length} public repos`);strengths.push(`${repos.length} repos shows active work`);profileScore+=20;}else if(repos.length>=3){has.push(`${repos.length} public repos`);weaknesses.push(`Only ${repos.length} repos — aim for 6+`);profileScore+=10;}else{missing.push('Public repositories');weaknesses.push(`Only ${repos.length} repos — profile looks abandoned`);}const withDesc=repos.filter(r=>r.description&&r.description.length>5).length;if(repos.length>0&&withDesc===repos.length){has.push('All repos documented');strengths.push('All repos have descriptions — professional');profileScore+=10;}else if(withDesc>0){has.push(`${withDesc} repos described`);weaknesses.push(`${repos.length-withDesc} repos missing descriptions`);profileScore+=5;}else if(repos.length>0){missing.push('Repo descriptions');weaknesses.push('No repo descriptions anywhere');}const totalStars=repos.reduce((s,r)=>s+(r.stars||0),0);if(totalStars>=10){has.push(`${totalStars} total stars`);strengths.push(`${totalStars} stars — community validates work`);profileScore+=10;}else if(totalStars>0){has.push(`${totalStars} stars`);profileScore+=3;}else{missing.push('Repository stars');weaknesses.push('No stars — build useful projects');}const currentStreak=streak?.current_streak_days||0,yearly=streak?.yearly_contributions||0;if(currentStreak>=7){has.push(`${currentStreak}-day streak`);strengths.push(`${currentStreak}-day streak — real dedication`);profileScore+=15;}else if(currentStreak>0){has.push(`${currentStreak}-day streak`);weaknesses.push(`Only ${currentStreak}-day streak — needs consistency`);profileScore+=5;}else{missing.push('Contribution streak');weaknesses.push('No active streak — activity graph looks dead');}if(yearly>=200){has.push(`${yearly} contributions`);strengths.push(`${yearly} contributions — very active`);profileScore+=15;}else if(yearly>=50){has.push(`${yearly} contributions`);profileScore+=8;weaknesses.push(`${yearly} contributions — aim for 200+`);}else{missing.push(`Enough contributions (only ${yearly})`);weaknesses.push(`Only ${yearly} contributions — needs much more`);}if(langs.length>=3){has.push(`${langs.length} languages`);strengths.push(`${langs.length} languages — good versatility`);profileScore+=10;}else if(langs.length>=1){has.push(`${langs.length} language`);weaknesses.push(`Only ${langs.length} language — expand tech stack`);profileScore+=5;}else{missing.push('Programming languages');weaknesses.push('No detectable languages');}const followers=p.followers||0;if(followers>=50){has.push(`${followers} followers`);strengths.push(`${followers} followers — strong community`);profileScore+=10;}else if(followers>=10){has.push(`${followers} followers`);profileScore+=5;weaknesses.push(`${followers} followers — grow community`);}else{missing.push(`Followers (only ${followers})`);weaknesses.push(`Only ${followers} followers — very low presence`);}const aiScore=ai?.overall_score||0;if(aiScore>=7){strengths.push(`Strong AI score ${aiScore}/10`);profileScore+=10;}else if(aiScore>=4){weaknesses.push(`Average AI score ${aiScore}/10`);}else if(aiScore>0){weaknesses.push(`Low AI score ${aiScore}/10`);}const placementReady=profileScore>=70,jobReady=profileScore>=60&&repos.length>=3&&yearly>=50;return{has,missing,strengths,weaknesses,profileScore:Math.min(profileScore,100),currentStreak,yearly,totalStars,followers,aiScore,placementReady,jobReady};};
+  const findCommon=(r)=>{const common=[],differences=[];const l1Names=new Set((r.l1||[]).map(l=>l.language));const l2Names=new Set((r.l2||[]).map(l=>l.language));const shared=[...l1Names].filter(l=>l2Names.has(l));if(shared.length>0)common.push(`Both code in: ${shared.join(', ')}`);else differences.push('No common languages — completely different tech stacks');if(r.p1.bio&&r.p2.bio)common.push('Both have profile bios');else if(!r.p1.bio&&!r.p2.bio){common.push('Neither has a bio');differences.push('Both missing bios — both invisible to recruiters');}if((r.streak1.current_streak_days||0)===0&&(r.streak2.current_streak_days||0)===0){common.push('Neither has an active streak');differences.push('Both need to build contribution consistency');}if((r.streak1.yearly_contributions||0)<100&&(r.streak2.yearly_contributions||0)<100)common.push('Both have below-100 yearly contributions');if(r.repos1.length<5&&r.repos2.length<5)common.push('Both have limited public repositories');return{common,differences};};
+  const getWhyBetter=(r,winnerName,loserName)=>{const isW1=winnerName===user1;const wp=isW1?r.p1:r.p2,lp=isW1?r.p2:r.p1;const ws=isW1?r.streak1:r.streak2,ls=isW1?r.streak2:r.streak1;const wl=isW1?r.l1:r.l2,ll=isW1?r.l2:r.l1;const wr=isW1?r.repos1:r.repos2,lr=isW1?r.repos2:r.repos1;const wa=isW1?r.a1:r.a2,la=isW1?r.a2:r.a1;const reasons=[];if((wp.followers||0)>(lp.followers||0))reasons.push(`@${winnerName} has ${(wp.followers||0)-(lp.followers||0)} more followers — stronger community engagement.`);if((ws.yearly_contributions||0)>(ls.yearly_contributions||0))reasons.push(`@${winnerName} made ${(ws.yearly_contributions||0)-(ls.yearly_contributions||0)} more contributions this year — far greater consistency.`);if((ws.current_streak_days||0)>(ls.current_streak_days||0))reasons.push(`@${winnerName} has a ${ws.current_streak_days}-day streak vs @${loserName}'s ${ls.current_streak_days||0} days.`);if(wr.length>lr.length)reasons.push(`@${winnerName} has ${wr.length-lr.length} more public repositories — more active development.`);if(wl.length>ll.length)reasons.push(`@${winnerName} uses ${wl.length} languages vs @${loserName}'s ${ll.length} — greater versatility.`);if((wa.overall_score||0)>(la.overall_score||0))reasons.push(`AI scored @${winnerName}'s profile ${wa.overall_score}/10 vs @${loserName}'s ${la.overall_score||0}/10.`);if(wp.bio&&!lp.bio)reasons.push(`@${winnerName} has a bio while @${loserName} does not — even this matters to recruiters.`);return reasons.length>0?reasons:[`Both profiles are very evenly matched — @${winnerName} edges out by a small margin.`];};
+  const getGrowthTips=(analysis,username,opAnalysis,opName)=>[...analysis.missing.slice(0,2).map(m=>`Add ${m} — free and takes 5 minutes`),opAnalysis.followers>analysis.followers?`Gain ${opAnalysis.followers-analysis.followers} more followers to match @${opName} — contribute to popular open source repos`:'Keep engaging with community to grow followers',opAnalysis.yearly>analysis.yearly?`Increase yearly contributions by ${opAnalysis.yearly-analysis.yearly} to match @${opName} — commit daily`:'Maintain pace and push toward 200+ per year',opAnalysis.currentStreak>analysis.currentStreak?`Build a ${opAnalysis.currentStreak}-day streak like @${opName} — start today`:'Keep your streak alive — consistency is the #1 hiring signal',analysis.missing.includes('Profile README')?`Create profile README — name a repo exactly "${username}"`:'Add GitHub stats widgets to your profile README','Add topics and tags to every repo so they appear in GitHub search','Open at least one PR to an open source project this month'].filter(Boolean).slice(0,7);
+
+  const verdict=result?getVerdict(result):null;
+  const analysis1=result?analyzeProf(result.p1,result.l1,result.repos1,result.streak1,result.a1,user1):null;
+  const analysis2=result?analyzeProf(result.p2,result.l2,result.repos2,result.streak2,result.a2,user2):null;
+  const commonData=result?findCommon(result):null;
+  const whyBetter=result&&verdict?getWhyBetter(result,verdict.winner,verdict.loser):null;
+  const whyLoserWeaknesses=result&&verdict?(verdict.loser===user1?analysis1:analysis2)?.weaknesses||[]:[];
+
+  const TABS=[{key:'overview',label:'Overview'},{key:'profile1',label:`@${user1||'User 1'}`},{key:'profile2',label:`@${user2||'User 2'}`},{key:'whybetter',label:'Why Better?'},{key:'common',label:'Common'},{key:'growtips',label:'Grow Faster'}];
+
+  const CRow=({label,v1,v2,numeric=false})=>{const n1=numeric?Number(v1):0,n2=numeric?Number(v2):0,v1w=numeric&&n1>n2,v2w=numeric&&n2>n1;return(<><div style={{textAlign:'center',padding:'0.65rem 0.5rem',borderBottom:`1px solid ${t.border}`,color:v1w?'#4ade80':v2w?'#f87171':t.text,fontWeight:v1w||v2w?700:400,fontSize:'0.9rem'}}>{String(v1)}{v1w?' 🏆':''}</div><div style={{textAlign:'center',padding:'0.65rem 0',borderBottom:`1px solid ${t.border}`,color:t.subtext,fontSize:'0.72rem',textTransform:'uppercase',letterSpacing:'0.08em'}}>{label}</div><div style={{textAlign:'center',padding:'0.65rem 0.5rem',borderBottom:`1px solid ${t.border}`,color:v2w?'#4ade80':v1w?'#f87171':t.text,fontWeight:v1w||v2w?700:400,fontSize:'0.9rem'}}>{String(v2)}{v2w?' 🏆':''}</div></>);};
+
+  const ProfileTruth=({username,analysis,langs,repos})=>(<div style={{display:'flex',flexDirection:'column',gap:'1rem'}}>
+    <div style={{background:t.cardBg,border:`1px solid ${t.border}`,borderRadius:'1rem',padding:'1.25rem',display:'flex',alignItems:'center',gap:'1.5rem',flexWrap:'wrap'}}>
+      <div style={{textAlign:'center'}}><div style={{fontSize:'2.5rem',fontWeight:800,color:analysis.profileScore>=70?'#4ade80':analysis.profileScore>=40?'#fbbf24':'#f87171'}}>{analysis.profileScore}</div><div style={{color:t.subtext,fontSize:'0.75rem',textTransform:'uppercase',letterSpacing:'0.1em'}}>Profile Score</div></div>
+      <div style={{flex:1,minWidth:200}}><div style={{display:'flex',gap:'0.5rem',marginBottom:'0.5rem',flexWrap:'wrap'}}><span style={{padding:'0.2rem 0.6rem',borderRadius:'999px',fontSize:'0.75rem',fontWeight:700,background:analysis.placementReady?'rgba(74,222,128,0.2)':'rgba(248,113,113,0.2)',color:analysis.placementReady?'#4ade80':'#f87171'}}>{analysis.placementReady?'✅ Placement Ready':'❌ Not Placement Ready'}</span><span style={{padding:'0.2rem 0.6rem',borderRadius:'999px',fontSize:'0.75rem',fontWeight:700,background:analysis.jobReady?'rgba(74,222,128,0.2)':'rgba(248,113,113,0.2)',color:analysis.jobReady?'#4ade80':'#f87171'}}>{analysis.jobReady?'✅ Job Ready':'❌ Not Job Ready'}</span></div><div style={{height:'0.5rem',borderRadius:'999px',background:t.border}}><div style={{height:'100%',borderRadius:'999px',background:analysis.profileScore>=70?'#4ade80':analysis.profileScore>=40?'#fbbf24':'#f87171',width:`${analysis.profileScore}%`,transition:'width 1s ease'}}/></div></div>
+    </div>
+    {[{title:`✅ What @${username} HAS`,items:analysis.has,color:'#4ade80',icon:'✓',emptyMsg:'Nothing strong found yet'},{title:`❌ What @${username} is MISSING`,items:analysis.missing,color:'#f87171',icon:'✗',emptyMsg:'Nothing major missing!'},{title:'💪 Strengths',items:analysis.strengths,color:t.accent,icon:'⚡',emptyMsg:'Build more to show strengths'},{title:'⚠️ Weaknesses to Fix',items:analysis.weaknesses,color:'#fbbf24',icon:'!',emptyMsg:'No major weaknesses!'}].map(section=>(<div key={section.title} style={{background:t.cardBg,border:`1px solid ${section.color}44`,borderRadius:'1rem',padding:'1.25rem'}}><h4 style={{margin:'0 0 0.75rem',color:section.color,fontSize:'0.82rem',textTransform:'uppercase',letterSpacing:'0.1em'}}>{section.title}</h4>{section.items.length>0?section.items.map((item,i)=>(<div key={i} style={{display:'flex',gap:'0.5rem',padding:'0.35rem 0',borderBottom:i<section.items.length-1?`1px solid ${t.border}`:'none'}}><span style={{color:section.color,flexShrink:0}}>{section.icon}</span><span style={{color:t.text,fontSize:'0.85rem'}}>{item}</span></div>)):<div style={{color:t.subtext,fontSize:'0.85rem',fontStyle:'italic'}}>{section.emptyMsg}</div>}</div>))}
+    {langs.length>0&&<div style={{background:t.cardBg,border:`1px solid ${t.border}`,borderRadius:'1rem',padding:'1.25rem'}}><h4 style={{margin:'0 0 0.75rem',color:t.accent,fontSize:'0.82rem',textTransform:'uppercase',letterSpacing:'0.1em'}}>💻 Languages</h4>{langs.slice(0,5).map(l=>(<div key={l.language} style={{marginBottom:'0.55rem'}}><div style={{display:'flex',justifyContent:'space-between',fontSize:'0.8rem',marginBottom:'0.2rem'}}><span style={{color:t.text,fontWeight:500}}>{l.language}</span><span style={{color:t.accent,fontWeight:700}}>{l.percentage}%</span></div><div style={{height:'0.35rem',borderRadius:'999px',background:t.border}}><div style={{height:'100%',borderRadius:'999px',background:t.accent,width:`${l.percentage}%`,transition:'width 0.8s ease'}}/></div></div>))}</div>}
+    {repos.length>0&&<div style={{background:t.cardBg,border:`1px solid ${t.border}`,borderRadius:'1rem',padding:'1.25rem'}}><h4 style={{margin:'0 0 0.75rem',color:t.accent,fontSize:'0.82rem',textTransform:'uppercase',letterSpacing:'0.1em'}}>🗂️ Top Projects</h4>{repos.slice(0,5).map(r=>(<div key={r.name} style={{padding:'0.6rem 0.75rem',borderRadius:'0.75rem',border:`1px solid ${t.border}`,marginBottom:'0.5rem',background:'rgba(255,255,255,0.02)'}}><div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}><span style={{color:t.text,fontSize:'0.85rem',fontWeight:600}}>{r.name}</span><span style={{color:'#fde68a',fontSize:'0.8rem'}}>★ {r.stars||0}</span></div>{r.description?<div style={{color:t.subtext,fontSize:'0.75rem',marginTop:'0.2rem'}}>{r.description.slice(0,80)}{r.description.length>80?'...':''}</div>:<div style={{color:'#f87171',fontSize:'0.72rem',marginTop:'0.2rem',fontStyle:'italic'}}>⚠️ No description — add one!</div>}</div>))}</div>}
+  </div>);
+
+  const usage=getUsage();const comparesLeft=isPremium()?'∞':Math.max(0,FREE_COMPARE_LIMIT-usage.compare);
+  return(<section style={{display:'flex',flexDirection:'column',gap:'1.5rem'}}>
+    <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',flexWrap:'wrap',gap:'0.5rem'}}>
+      <div><h2 style={{margin:0,color:t.text,fontSize:'1.3rem',fontWeight:700}}>{tr(lang,'compare')}</h2><p style={{color:t.subtext,fontSize:'0.9rem',margin:'0.25rem 0 0'}}>Deep truth analysis — strengths, gaps, why one is better, how both can grow</p></div>
+      <span style={{padding:'0.3rem 0.75rem',borderRadius:'999px',fontSize:'0.8rem',background:isPremium()?`${t.accent}22`:'rgba(251,191,36,0.15)',color:isPremium()?t.accent:'#fbbf24',fontWeight:600}}>{isPremium()?'✨ Pro — Unlimited':`${comparesLeft} free comparisons left`}</span>
+    </div>
+    <div className="compare-inputs"><input className="auth-input" type="text" placeholder="First username" value={user1} onChange={e=>setUser1(e.target.value)} style={{background:t.cardBg,color:t.text,borderColor:t.border}} onKeyDown={e=>e.key==='Enter'&&handleCompare()}/><span style={{color:t.subtext,fontWeight:700,padding:'0 0.5rem',flexShrink:0}}>vs</span><input className="auth-input" type="text" placeholder="Second username" value={user2} onChange={e=>setUser2(e.target.value)} style={{background:t.cardBg,color:t.text,borderColor:t.border}} onKeyDown={e=>e.key==='Enter'&&handleCompare()}/><button className="search-button" onClick={handleCompare} disabled={isLoading} style={{background:t.btnBg,whiteSpace:'nowrap',flexShrink:0}}>{isLoading?'Comparing...':tr(lang,'compare')}</button></div>
+    {error&&<p style={{color:'#f87171',fontSize:'0.9rem'}}>{error}</p>}
+    {result&&verdict&&(<>
+      <div style={{background:`linear-gradient(135deg,${t.accent}22,${t.accent2}22)`,border:`2px solid ${t.accent}55`,borderRadius:'1.25rem',padding:'1.25rem',textAlign:'center'}}><div style={{fontSize:'2rem',marginBottom:'0.25rem'}}>🏆</div><div style={{color:t.accent,fontWeight:800,fontSize:'1.2rem'}}>@{verdict.winner} has a stronger profile!</div><div style={{color:t.subtext,fontSize:'0.82rem',marginTop:'0.3rem'}}>@{user1} scored {verdict.s1} · @{user2} scored {verdict.s2} · Out of 5 metrics</div></div>
+      <div style={{display:'flex',gap:0,borderBottom:`1px solid ${t.border}`,overflowX:'auto'}}>{TABS.map(tab=>(<button key={tab.key} onClick={()=>setActiveTab(tab.key)} style={{padding:'0.65rem 1rem',background:'none',border:'none',cursor:'pointer',fontWeight:activeTab===tab.key?700:400,fontSize:'0.85rem',color:activeTab===tab.key?t.accent:t.subtext,borderBottom:activeTab===tab.key?`2px solid ${t.accent}`:'2px solid transparent',whiteSpace:'nowrap'}}>{tab.label}</button>))}</div>
+      {activeTab==='overview'&&<div style={{background:t.cardBg,border:`1px solid ${t.border}`,borderRadius:'1rem',padding:'1.25rem'}}><h3 style={{margin:'0 0 1rem',color:t.accent,fontSize:'0.82rem',textTransform:'uppercase',letterSpacing:'0.1em'}}>Full Scorecard</h3><div style={{display:'grid',gridTemplateColumns:'1fr auto 1fr',gap:'0.25rem'}}><div style={{textAlign:'center',fontWeight:800,color:t.accent,padding:'0.6rem 0',borderBottom:`2px solid ${t.accent}`}}>@{user1}</div><div style={{textAlign:'center',color:t.subtext,padding:'0.6rem 0',borderBottom:`2px solid ${t.border}`}}></div><div style={{textAlign:'center',fontWeight:800,color:t.accent,padding:'0.6rem 0',borderBottom:`2px solid ${t.accent}`}}>@{user2}</div><CRow label="Profile Score" v1={analysis1?.profileScore||0} v2={analysis2?.profileScore||0} numeric/><CRow label="AI Score /10" v1={result.a1.overall_score??0} v2={result.a2.overall_score??0} numeric/><CRow label="Followers" v1={result.p1.followers??0} v2={result.p2.followers??0} numeric/><CRow label="Public Repos" v1={result.repos1.length} v2={result.repos2.length} numeric/><CRow label="Total Stars" v1={result.repos1.reduce((s,r)=>s+(r.stars||0),0)} v2={result.repos2.reduce((s,r)=>s+(r.stars||0),0)} numeric/><CRow label="Yearly Commits" v1={result.streak1.yearly_contributions??0} v2={result.streak2.yearly_contributions??0} numeric/><CRow label="Current Streak" v1={`${result.streak1.current_streak_days??0}d`} v2={`${result.streak2.current_streak_days??0}d`}/><CRow label="Languages Used" v1={result.l1.length} v2={result.l2.length} numeric/><CRow label="Top Language" v1={result.l1[0]?.language||'—'} v2={result.l2[0]?.language||'—'}/><CRow label="Has Bio" v1={result.p1.bio?'✅':'❌'} v2={result.p2.bio?'✅':'❌'}/><CRow label="Has Website" v1={result.p1.blog?'✅':'❌'} v2={result.p2.blog?'✅':'❌'}/><CRow label="Placement Ready" v1={analysis1?.placementReady?'✅':'❌'} v2={analysis2?.placementReady?'✅':'❌'}/><CRow label="Job Ready" v1={analysis1?.jobReady?'✅':'❌'} v2={analysis2?.jobReady?'✅':'❌'}/></div></div>}
+      {activeTab==='profile1'&&analysis1&&<ProfileTruth username={user1} analysis={analysis1} langs={result.l1} repos={result.repos1}/>}
+      {activeTab==='profile2'&&analysis2&&<ProfileTruth username={user2} analysis={analysis2} langs={result.l2} repos={result.repos2}/>}
+      {activeTab==='whybetter'&&whyBetter&&(<div style={{display:'flex',flexDirection:'column',gap:'1rem'}}><div style={{background:`${t.accent}0d`,border:`1px solid ${t.accent}44`,borderRadius:'1rem',padding:'1.25rem'}}><h3 style={{margin:'0 0 1rem',color:t.accent,fontSize:'0.88rem',textTransform:'uppercase',letterSpacing:'0.1em'}}>🏆 Why @{verdict.winner} is stronger</h3>{whyBetter.map((reason,i)=>(<div key={i} style={{display:'flex',gap:'0.75rem',marginBottom:'0.75rem',padding:'0.65rem',background:'rgba(255,255,255,0.03)',borderRadius:'0.75rem',border:`1px solid ${t.border}`}}><div style={{width:'1.5rem',height:'1.5rem',borderRadius:'999px',background:t.accent,color:'#000',fontSize:'0.72rem',fontWeight:800,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>{i+1}</div><p style={{margin:0,color:t.text,fontSize:'0.88rem',lineHeight:1.6}}>{reason}</p></div>))}</div><div style={{background:'rgba(248,113,113,0.08)',border:'1px solid rgba(248,113,113,0.3)',borderRadius:'1rem',padding:'1.25rem'}}><h3 style={{margin:'0 0 1rem',color:'#f87171',fontSize:'0.88rem',textTransform:'uppercase',letterSpacing:'0.1em'}}>📉 Why @{verdict.loser} is behind</h3>{whyLoserWeaknesses.slice(0,5).map((w,i)=>(<div key={i} style={{display:'flex',gap:'0.75rem',marginBottom:'0.6rem'}}><span style={{color:'#f87171',flexShrink:0}}>→</span><span style={{color:t.text,fontSize:'0.88rem',lineHeight:1.5}}>{w}</span></div>))}</div></div>)}
+      {activeTab==='common'&&commonData&&(<div style={{display:'flex',flexDirection:'column',gap:'1rem'}}><div style={{background:t.cardBg,border:`1px solid ${t.border}`,borderRadius:'1rem',padding:'1.25rem'}}><h3 style={{margin:'0 0 0.75rem',color:t.accent,fontSize:'0.82rem',textTransform:'uppercase',letterSpacing:'0.1em'}}>🤝 What Both Share</h3>{commonData.common.length>0?commonData.common.map((c,i)=>(<div key={i} style={{display:'flex',gap:'0.75rem',padding:'0.4rem 0',borderBottom:i<commonData.common.length-1?`1px solid ${t.border}`:'none'}}><span style={{color:t.accent}}>↔️</span><span style={{color:t.text,fontSize:'0.88rem'}}>{c}</span></div>)):<div style={{color:t.subtext,fontSize:'0.88rem',fontStyle:'italic'}}>Very different profiles</div>}</div>{commonData.differences.length>0&&<div style={{background:'rgba(251,191,36,0.06)',border:'1px solid rgba(251,191,36,0.3)',borderRadius:'1rem',padding:'1.25rem'}}><h3 style={{margin:'0 0 0.75rem',color:'#fbbf24',fontSize:'0.82rem',textTransform:'uppercase',letterSpacing:'0.1em'}}>⚠️ Shared Problems — Both Need to Fix</h3>{commonData.differences.map((d,i)=>(<div key={i} style={{display:'flex',gap:'0.5rem',padding:'0.4rem 0',borderBottom:i<commonData.differences.length-1?`1px solid ${t.border}`:'none'}}><span style={{color:'#fbbf24',flexShrink:0}}>!</span><span style={{color:t.text,fontSize:'0.85rem'}}>{d}</span></div>))}</div>}{result.l1.length>0&&result.l2.length>0&&<div style={{background:t.cardBg,border:`1px solid ${t.border}`,borderRadius:'1rem',padding:'1.25rem'}}><h3 style={{margin:'0 0 1rem',color:t.accent,fontSize:'0.82rem',textTransform:'uppercase',letterSpacing:'0.1em'}}>💻 Language Overlap</h3><div style={{display:'grid',gridTemplateColumns:'1fr auto 1fr',gap:'0.75rem'}}><div><div style={{color:t.text,fontWeight:600,fontSize:'0.82rem',marginBottom:'0.5rem'}}>Only @{user1}</div>{result.l1.filter(l=>!result.l2.some(l2=>l2.language===l.language)).map(l=>(<span key={l.language} style={{display:'inline-block',padding:'0.2rem 0.6rem',borderRadius:'999px',background:`${t.accent}22`,color:t.accent,fontSize:'0.75rem',fontWeight:600,marginBottom:'0.3rem',marginRight:'0.3rem'}}>{l.language}</span>))}</div><div style={{textAlign:'center'}}><div style={{color:t.subtext,fontSize:'0.72rem',textTransform:'uppercase',letterSpacing:'0.1em',marginBottom:'0.5rem'}}>Shared</div>{result.l1.filter(l=>result.l2.some(l2=>l2.language===l.language)).map(l=>(<span key={l.language} style={{display:'inline-block',padding:'0.2rem 0.6rem',borderRadius:'999px',background:'rgba(74,222,128,0.2)',color:'#4ade80',fontSize:'0.75rem',fontWeight:600,marginBottom:'0.3rem'}}>{l.language}</span>))}{result.l1.filter(l=>result.l2.some(l2=>l2.language===l.language)).length===0&&<div style={{color:t.subtext,fontSize:'0.78rem',fontStyle:'italic'}}>None</div>}</div><div><div style={{color:t.text,fontWeight:600,fontSize:'0.82rem',marginBottom:'0.5rem'}}>Only @{user2}</div>{result.l2.filter(l=>!result.l1.some(l1=>l1.language===l.language)).map(l=>(<span key={l.language} style={{display:'inline-block',padding:'0.2rem 0.6rem',borderRadius:'999px',background:`${t.accent2}22`,color:t.accent2,fontSize:'0.75rem',fontWeight:600,marginBottom:'0.3rem',marginRight:'0.3rem'}}>{l.language}</span>))}</div></div></div>}</div>)}
+      {activeTab==='growtips'&&analysis1&&analysis2&&(<div style={{display:'flex',flexDirection:'column',gap:'1.25rem'}}>{[{user:user1,analysis:analysis1,opAnalysis:analysis2,opName:user2,color:t.accent},{user:user2,analysis:analysis2,opAnalysis:analysis1,opName:user1,color:t.accent2}].map(({user,analysis,opAnalysis,opName,color})=>(<div key={user} style={{background:t.cardBg,border:`1px solid ${color}44`,borderRadius:'1rem',padding:'1.25rem'}}><h3 style={{margin:'0 0 1rem',color,fontSize:'0.88rem',textTransform:'uppercase',letterSpacing:'0.1em'}}>🚀 How @{user} Can Grow Faster</h3>{getGrowthTips(analysis,user,opAnalysis,opName).map((tip,i)=>(<div key={i} style={{display:'flex',gap:'0.75rem',marginBottom:'0.75rem',alignItems:'flex-start'}}><div style={{width:'1.5rem',height:'1.5rem',borderRadius:'999px',background:color,color:'#000',fontSize:'0.72rem',fontWeight:800,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>{i+1}</div><p style={{margin:0,color:t.text,fontSize:'0.88rem',lineHeight:1.6}}>{tip}</p></div>))}</div>))}<div style={{background:`${t.accent}0d`,border:`1px solid ${t.accent}33`,borderRadius:'1rem',padding:'1.25rem'}}><h3 style={{margin:'0 0 1rem',color:t.accent,fontSize:'0.88rem',textTransform:'uppercase',letterSpacing:'0.1em'}}>📅 30-Day Plan for Both Profiles</h3>{[{week:'Week 1',icon:'🛠️',task:'Fix basics — bio, photo, location, website, and descriptions on all repos'},{week:'Week 2',icon:'⚡',task:'Build a streak — commit something every single day'},{week:'Week 3',icon:'🗂️',task:'Launch 2 new projects with proper READMEs and live demos'},{week:'Week 4',icon:'🌍',task:'Contribute to open source — find a good first issue and open your first PR'}].map((item,i)=>(<div key={i} style={{display:'flex',gap:'1rem',padding:'0.75rem 0',borderBottom:i<3?`1px solid ${t.border}`:'none'}}><span style={{fontSize:'1.3rem',flexShrink:0}}>{item.icon}</span><div><div style={{color:t.accent,fontWeight:700,fontSize:'0.85rem',marginBottom:'0.2rem'}}>{item.week}</div><div style={{color:t.text,fontSize:'0.85rem',lineHeight:1.5}}>{item.task}</div></div></div>))}</div></div>)}
+    </>)}
+  </section>);
+}
+
+// ── Subscription Page ──────────────────────────────────────────────────────
+function SubscriptionPage({theme,lang}){
+  const t=THEMES[theme];const [selectedPlan,setSelectedPlan]=useState(null);const [selectedPayment,setSelectedPayment]=useState(null);const [step,setStep]=useState('plans');const [isProcessing,setIsProcessing]=useState(false);
+  const currentSub=getSubscription();const isActive=!!currentSub;const daysLeft=isActive?Math.ceil((new Date(currentSub.expiresAt)-new Date())/(1000*60*60*24)):0;const usage=getUsage();
+  const PLANS=[{id:'weekly',name:'1 Week',price:'$3',priceINR:'₹249',duration:7,tag:null,color:'#60a5fa',features:['Unlimited profile analysis','Unlimited comparisons','All Gen-Z themes','AI chat assistant','Profile reality check']},{id:'monthly',name:'1 Month',price:'$7',priceINR:'₹579',duration:30,tag:'Most Popular',color:t.accent,features:['Everything in Weekly','Priority AI responses','Advanced comparison','Growth roadmap','Badge guide']},{id:'quarterly',name:'3 Months',price:'$15',priceINR:'₹1,249',duration:90,tag:'Best Value',color:'#4ade80',features:['Everything in Monthly','Profile history tracking','Early access to features','Export analysis']},{id:'yearly',name:'1 Year',price:'$30',priceINR:'₹2,499',duration:365,tag:'58% Off',color:'#fbbf24',features:['Everything in 3 Months','Lifetime updates','Priority support','Exclusive community access']}];
+  const PAYMENT_METHODS=[{id:'razorpay',name:'Razorpay',icon:'💳',desc:'Cards, UPI, Netbanking',color:'#2563eb'},{id:'phonepe',name:'PhonePe',icon:'📱',desc:'UPI payments',color:'#5f259f'},{id:'googlepay',name:'Google Pay',icon:'🔵',desc:'Google Pay UPI',color:'#4285f4'},{id:'paytm',name:'Paytm',icon:'💰',desc:'Paytm wallet & UPI',color:'#00b9f1'},{id:'paypal',name:'PayPal',icon:'🅿️',desc:'International payments',color:'#003087'},{id:'upi',name:'UPI Direct',icon:'🇮🇳',desc:'Any UPI app',color:'#ff6b00'},{id:'card',name:'Credit/Debit Card',icon:'💳',desc:'Visa, Mastercard, Amex',color:'#22c55e'},{id:'netbanking',name:'Net Banking',icon:'🏦',desc:'All major Indian banks',color:'#8b5cf6'}];
+
+  const handlePayment=async()=>{
+    if(!selectedPayment||!selectedPlan)return;
+    setIsProcessing(true);
+    try{
+      const orderRes=await fetch(`${API}/create-order`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({plan_id:selectedPlan})});
+      const orderData=await orderRes.json();
+      if(orderData.error){throw new Error(orderData.error);}
+      if(orderData.key_id&&window.Razorpay){
+        const plan=PLANS.find(p=>p.id===selectedPlan);
+        const options={key:orderData.key_id,amount:orderData.amount,currency:orderData.currency,name:'GitHub Profile Analyzer',description:plan?.name,order_id:orderData.order_id,handler:async(response)=>{
+          const verifyRes=await fetch(`${API}/verify-payment`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({razorpay_order_id:response.razorpay_order_id,razorpay_payment_id:response.razorpay_payment_id,razorpay_signature:response.razorpay_signature,plan_id:selectedPlan})});
+          const verifyData=await verifyRes.json();
+          if(verifyData.success){const expiresAt=new Date();expiresAt.setDate(expiresAt.getDate()+plan.duration);localStorage.setItem('gpa-subscription',JSON.stringify({plan:plan.id,planName:plan.name,price:plan.price,startedAt:new Date().toISOString(),expiresAt:expiresAt.toISOString(),paymentId:response.razorpay_payment_id}));localStorage.setItem('gpa-analyze-count','0');localStorage.setItem('gpa-compare-count','0');setStep('success');}else{alert('Payment verification failed. Contact support@gpa.dev');}
+        },theme:{color:t.accent}};
+        const rzp=new window.Razorpay(options);rzp.open();
+      } else {
+        // Demo mode — no Razorpay yet
+        setTimeout(()=>{const plan=PLANS.find(p=>p.id===selectedPlan);const expiresAt=new Date();expiresAt.setDate(expiresAt.getDate()+plan.duration);localStorage.setItem('gpa-subscription',JSON.stringify({plan:plan.id,planName:plan.name,price:plan.price,startedAt:new Date().toISOString(),expiresAt:expiresAt.toISOString()}));localStorage.setItem('gpa-analyze-count','0');localStorage.setItem('gpa-compare-count','0');setStep('success');},1500);
       }
-    } catch {
-      setError('Failed to compare. Ensure both usernames exist and backend is running.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-  
-  const CRow = ({label, v1, v2, numeric = false}) => {
-    const n1 = numeric ? Number(v1) : 0, n2 = numeric ? Number(v2) : 0, v1w = numeric && n1 > n2, v2w = numeric && n2 > n1;
-    return (
-      <>
-        <div style={{textAlign: 'center', padding: '0.6rem 0.25rem', borderBottom: `1px solid ${tTheme.border}`, color: v1w ? tTheme.accent : tTheme.text, fontWeight: v1w ? 700 : 400}}>{String(v1)}</div>
-        <div style={{textAlign: 'center', padding: '0.6rem 0', borderBottom: `1px solid ${tTheme.border}`, color: tTheme.subtext, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.08em'}}>{label}</div>
-        <div style={{textAlign: 'center', padding: '0.6rem 0.25rem', borderBottom: `1px solid ${tTheme.border}`, color: v2w ? tTheme.accent : tTheme.text, fontWeight: v2w ? 700 : 400}}>{String(v2)}</div>
-      </>
-    );
+    }catch(err){alert(`Payment error: ${err.message}`);}
+    finally{setIsProcessing(false);}
   };
 
-  return (
-    <section style={{display: 'flex', flexDirection: 'column', gap: '1.5rem'}}>
-      <div>
-        <h2 style={{margin: 0, color: tTheme.text, fontSize: '1.3rem', fontWeight: 700}}>{tStr(language, 'compare')}</h2>
-        <p style={{color: tTheme.subtext, fontSize: '0.9rem', margin: '0.25rem 0 0'}}>Deep compare two GitHub profiles {!isPremium && `(${3 - compareCount} free left)`}</p>
-      </div>
-      <div className="compare-inputs">
-        <input className="auth-input" type="text" placeholder="Your username" value={user1} onChange={e => setUser1(e.target.value)} style={{background: tTheme.cardBg, color: tTheme.text, borderColor: tTheme.border}} onKeyDown={e => e.key === 'Enter' && handleCompare()}/>
-        <span style={{color: tTheme.subtext, fontWeight: 700, padding: '0 0.25rem', flexShrink: 0}}>vs</span>
-        <input className="auth-input" type="text" placeholder="Compare with" value={user2} onChange={e => setUser2(e.target.value)} style={{background: tTheme.cardBg, color: tTheme.text, borderColor: tTheme.border}} onKeyDown={e => e.key === 'Enter' && handleCompare()}/>
-        <button className="search-button" onClick={handleCompare} disabled={isLoading} style={{background: tTheme.btnBg, whiteSpace: 'nowrap', flexShrink: 0}}>{isLoading ? 'Comparing...' : 'Compare'}</button>
-      </div>
-      {error && <p style={{color: '#f87171', fontSize: '0.9rem'}}>{error}</p>}
-      
-      {result && (
-        <div style={{display: 'flex', flexDirection: 'column', gap: '1.5rem'}}>
-          <div style={{background: `${tTheme.accent}22`, border: `1px solid ${tTheme.accent}55`, borderRadius: '1rem', padding: '1.25rem', textAlign: 'center'}}>
-            <div style={{fontSize: '2rem', marginBottom: '0.5rem'}}>🏆</div>
-            <div style={{color: tTheme.accent, fontWeight: 700, fontSize: '1.2rem'}}>{result.comparison?.winner_reason || "Detailed comparison completed."}</div>
-          </div>
-          
-          <div style={{background: tTheme.cardBg, border: `1px solid ${tTheme.border}`, borderRadius: '1rem', padding: '1.25rem'}}>
-            <h3 style={{color: tTheme.accent, margin: '0 0 0.75rem', fontSize: '0.95rem'}}>AI Detailed Summary</h3>
-            <p style={{color: tTheme.text, fontSize: '0.9rem', lineHeight: 1.6, margin: 0}}>{result.comparison?.detailed_comparison}</p>
-          </div>
-
-          <div style={{display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', gap: '1rem'}}>
-            <div style={{background: tTheme.cardBg, border: `1px solid ${tTheme.border}`, borderRadius: '1rem', padding: '1.25rem'}}>
-              <h4 style={{color: tTheme.text, margin: '0 0 0.75rem', fontSize: '0.9rem'}}>Tips for @{result.profile1?.username}:</h4>
-              <ul style={{margin: 0, paddingLeft: '1.2rem', color: tTheme.subtext, fontSize: '0.88rem'}}>
-                {(result.comparison?.suggestions_user1 || []).map((tip, i) => <li key={i} style={{marginBottom: '0.3rem'}}>{tip}</li>)}
-              </ul>
-            </div>
-            <div style={{background: tTheme.cardBg, border: `1px solid ${tTheme.border}`, borderRadius: '1rem', padding: '1.25rem'}}>
-              <h4 style={{color: tTheme.text, margin: '0 0 0.75rem', fontSize: '0.9rem'}}>Tips for @{result.profile2?.username}:</h4>
-              <ul style={{margin: 0, paddingLeft: '1.2rem', color: tTheme.subtext, fontSize: '0.88rem'}}>
-                {(result.comparison?.suggestions_user2 || []).map((tip, i) => <li key={i} style={{marginBottom: '0.3rem'}}>{tip}</li>)}
-              </ul>
-            </div>
-          </div>
-
-          <div style={{border: `1px solid ${tTheme.border}`, background: tTheme.cardBg, borderRadius: '1rem', padding: '1.25rem'}}>
-            <div style={{display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: '0.25rem'}}>
-              <div style={{textAlign: 'center', fontWeight: 700, color: tTheme.accent, padding: '0.5rem 0', borderBottom: `2px solid ${tTheme.accent}`}}>@{result.profile1?.username}</div>
-              <div style={{textAlign: 'center', color: tTheme.subtext, padding: '0.5rem 0', borderBottom: `2px solid ${tTheme.border}`}}></div>
-              <div style={{textAlign: 'center', fontWeight: 700, color: tTheme.accent, padding: '0.5rem 0', borderBottom: `2px solid ${tTheme.accent}`}}>@{result.profile2?.username}</div>
-              
-              <CRow label="Followers" v1={result.profile1?.analysis?.profile?.followers ?? 0} v2={result.profile2?.analysis?.profile?.followers ?? 0} numeric/>
-              <CRow label="AI Score" v1={result.profile1?.analysis?.ai_analysis?.overall_score ?? 0} v2={result.profile2?.analysis?.ai_analysis?.overall_score ?? 0} numeric/>
-              <CRow label="Streak Days" v1={result.profile1?.analysis?.contribution_streak?.current_streak_days ?? 0} v2={result.profile2?.analysis?.contribution_streak?.current_streak_days ?? 0} numeric/>
-              <CRow label="Yearly Commits" v1={result.profile1?.analysis?.contribution_streak?.yearly_contributions ?? 0} v2={result.profile2?.analysis?.contribution_streak?.yearly_contributions ?? 0} numeric/>
-              <CRow label="Public Repos" v1={result.profile1?.analysis?.top_repositories?.length ?? 0} v2={result.profile2?.analysis?.top_repositories?.length ?? 0} numeric/>
-            </div>
-          </div>
-        </div>
-      )}
-    </section>
-  );
+  return(<section style={{display:'flex',flexDirection:'column',gap:'1.5rem'}}>
+    <div><h2 style={{margin:0,color:t.text,fontSize:'1.3rem',fontWeight:700}}>{tr(lang,'subscription_title')}</h2><p style={{color:t.subtext,fontSize:'0.9rem',margin:'0.25rem 0 0'}}>Unlock unlimited analysis, comparisons and all premium themes</p></div>
+    {isActive&&<div style={{background:`${t.accent}18`,border:`2px solid ${t.accent}55`,borderRadius:'1rem',padding:'1.25rem',display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:'0.75rem'}}><div><div style={{color:t.accent,fontWeight:700,fontSize:'1rem'}}>✅ Active — {currentSub.planName} Plan</div><div style={{color:t.subtext,fontSize:'0.85rem',marginTop:'0.2rem'}}>{daysLeft} days remaining · Expires {new Date(currentSub.expiresAt).toLocaleDateString()}</div></div><button onClick={()=>{localStorage.removeItem('gpa-subscription');window.location.reload();}} style={{background:'transparent',border:'1px solid #f87171',color:'#f87171',padding:'0.5rem 1rem',borderRadius:'0.75rem',cursor:'pointer',fontSize:'0.85rem'}}>Cancel</button></div>}
+    <div style={{background:t.cardBg,border:`1px solid ${t.border}`,borderRadius:'1rem',padding:'1.25rem'}}>
+      <h3 style={{margin:'0 0 0.75rem',color:t.subtext,fontSize:'0.85rem',textTransform:'uppercase',letterSpacing:'0.1em'}}>{tr(lang,'freePlan')}</h3>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(160px,1fr))',gap:'0.75rem'}}>{[{label:'Profile Analyzes',used:usage.analyze,total:FREE_ANALYZE_LIMIT},{label:'Comparisons',used:usage.compare,total:FREE_COMPARE_LIMIT},{label:'Standard Themes',used:5,total:5}].map(item=>(<div key={item.label} style={{textAlign:'center',padding:'0.75rem',background:'rgba(255,255,255,0.03)',borderRadius:'0.75rem',border:`1px solid ${t.border}`}}><div style={{color:t.text,fontWeight:600,fontSize:'0.82rem',marginBottom:'0.4rem'}}>{item.label}</div><div style={{height:'0.35rem',borderRadius:'999px',background:t.border,marginBottom:'0.3rem'}}><div style={{height:'100%',borderRadius:'999px',background:item.used>=item.total?'#f87171':t.accent,width:`${Math.min((item.used/item.total)*100,100)}%`}}/></div><div style={{color:t.subtext,fontSize:'0.75rem'}}>{item.used}/{item.total} used</div></div>))}</div>
+    </div>
+    {step==='plans'&&(<><div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))',gap:'1rem'}}>{PLANS.map(plan=>(<div key={plan.id} onClick={()=>setSelectedPlan(plan.id)} style={{background:selectedPlan===plan.id?`${plan.color}18`:t.cardBg,border:`2px solid ${selectedPlan===plan.id?plan.color:t.border}`,borderRadius:'1.1rem',padding:'1.25rem',cursor:'pointer',transition:'all 0.2s',position:'relative',boxShadow:selectedPlan===plan.id?`0 0 20px ${plan.color}44`:'none'}}>{plan.tag&&<div style={{position:'absolute',top:'-0.6rem',left:'50%',transform:'translateX(-50%)',background:plan.color,color:'#000',padding:'0.15rem 0.75rem',borderRadius:'999px',fontSize:'0.7rem',fontWeight:800,whiteSpace:'nowrap'}}>{plan.tag}</div>}<div style={{textAlign:'center',marginBottom:'1rem'}}><div style={{color:plan.color,fontWeight:800,fontSize:'1.1rem'}}>{plan.name}</div><div style={{color:t.text,fontWeight:800,fontSize:'1.8rem',lineHeight:1.2}}>{plan.price}</div><div style={{color:t.subtext,fontSize:'0.8rem'}}>{plan.priceINR} · one time</div></div>{plan.features.map((f,i)=><div key={i} style={{display:'flex',gap:'0.5rem',fontSize:'0.82rem',color:t.text,marginBottom:'0.35rem'}}><span style={{color:plan.color,flexShrink:0}}>✓</span>{f}</div>)}{selectedPlan===plan.id&&<div style={{textAlign:'center',marginTop:'0.75rem',color:plan.color,fontWeight:700,fontSize:'0.82rem'}}>✅ Selected</div>}</div>))}</div><button onClick={()=>selectedPlan&&setStep('payment')} disabled={!selectedPlan} style={{background:selectedPlan?t.btnBg:t.border,border:'none',color:'#fff',padding:'1rem',borderRadius:'0.9rem',cursor:selectedPlan?'pointer':'not-allowed',fontWeight:700,fontSize:'1rem',opacity:selectedPlan?1:0.6}}>Continue to Payment →</button></>)}
+    {step==='payment'&&(<><div style={{background:t.cardBg,border:`1px solid ${t.border}`,borderRadius:'1rem',padding:'1rem',display:'flex',justifyContent:'space-between',alignItems:'center'}}><span style={{color:t.text,fontSize:'0.9rem'}}>Selected: <strong>{PLANS.find(p=>p.id===selectedPlan)?.name} — {PLANS.find(p=>p.id===selectedPlan)?.price}</strong></span><button onClick={()=>setStep('plans')} style={{background:'none',border:`1px solid ${t.border}`,color:t.subtext,padding:'0.35rem 0.75rem',borderRadius:'0.6rem',cursor:'pointer',fontSize:'0.82rem'}}>Change</button></div><div><h3 style={{color:t.text,fontSize:'0.95rem',fontWeight:600,margin:'0 0 1rem'}}>Choose Payment Method</h3><div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))',gap:'0.75rem'}}>{PAYMENT_METHODS.map(pm=>(<button key={pm.id} onClick={()=>setSelectedPayment(pm.id)} style={{background:selectedPayment===pm.id?`${pm.color}18`:t.cardBg,border:`2px solid ${selectedPayment===pm.id?pm.color:t.border}`,borderRadius:'0.9rem',padding:'0.85rem',cursor:'pointer',textAlign:'left',transition:'all 0.15s'}}><div style={{display:'flex',alignItems:'center',gap:'0.5rem',marginBottom:'0.25rem'}}><span style={{fontSize:'1.2rem'}}>{pm.icon}</span><span style={{color:t.text,fontWeight:600,fontSize:'0.88rem'}}>{pm.name}</span></div><div style={{color:t.subtext,fontSize:'0.75rem'}}>{pm.desc}</div>{selectedPayment===pm.id&&<div style={{color:pm.color,fontSize:'0.72rem',fontWeight:700,marginTop:'0.25rem'}}>✓ Selected</div>}</button>))}</div></div><div style={{background:'rgba(251,191,36,0.08)',border:'1px solid rgba(251,191,36,0.3)',borderRadius:'0.75rem',padding:'0.85rem 1rem',fontSize:'0.82rem',color:'#fbbf24'}}>⚠️ Demo Mode: Real payments activate after deployment with Razorpay keys configured.</div><button onClick={handlePayment} disabled={!selectedPayment||isProcessing} style={{background:selectedPayment?t.btnBg:t.border,border:'none',color:'#fff',padding:'1rem',borderRadius:'0.9rem',cursor:selectedPayment?'pointer':'not-allowed',fontWeight:700,fontSize:'1rem',opacity:selectedPayment?1:0.6,display:'flex',alignItems:'center',justifyContent:'center',gap:'0.5rem'}}>{isProcessing?'⏳ Processing...':`Pay ${PLANS.find(p=>p.id===selectedPlan)?.price} with ${PAYMENT_METHODS.find(pm=>pm.id===selectedPayment)?.name||'...'}`}</button></>)}
+    {step==='success'&&<div style={{background:`${t.accent}18`,border:`2px solid ${t.accent}`,borderRadius:'1.25rem',padding:'2.5rem',textAlign:'center'}}><div style={{fontSize:'3rem',marginBottom:'1rem'}}>🎉</div><h3 style={{color:t.accent,margin:'0 0 0.5rem',fontSize:'1.3rem',fontWeight:800}}>Subscription Activated!</h3><p style={{color:t.subtext,margin:'0 0 1.5rem'}}>You now have full access to all premium features.</p><button onClick={()=>setStep('plans')} style={{background:t.btnBg,border:'none',color:'#fff',padding:'0.75rem 2rem',borderRadius:'0.9rem',cursor:'pointer',fontWeight:700}}>Start Using Premium →</button></div>}
+  </section>);
 }
 
 // ── Tutorial ───────────────────────────────────────────────────────────────
-const tutorialTips=[{id:'b1',level:'Beginner',title:'What is GitHub and why use it',text:'GitHub is a platform for hosting and collaborating on code using Git. It lets you store your projects, track changes over time, and work with others through pull requests and issues.'},{id:'b2',level:'Beginner',title:'Create your first repository',text:'Start by creating a new repository with a clear name and description. Initialize it with a README so visitors immediately understand what the project does.'},{id:'b3',level:'Beginner',title:'Commits, push and pull',text:'Commits capture snapshots of your code; push uploads local commits to GitHub, while pull fetches the latest changes from the remote repository to your machine.'},{id:'b4',level:'Beginner',title:'Write a good README',text:'A strong README explains what the project is, how to install it, how to use it, and any contribution guidelines.'},{id:'b5',level:'Beginner',title:'Branches and why they matter',text:'Branches let you experiment and build features without breaking main. Create feature branches, make changes there, then merge them back once reviewed.'},{id:'i1',level:'Intermediate',title:'Contribute to open source',text:'Find beginner-friendly issues, fork the repository, create a branch, make focused changes, and open a pull request explaining what you improved and why.'},{id:'i2',level:'Intermediate',title:'Understanding Pull Requests',text:'A pull request proposes changes from one branch to another. Use clear titles, detailed descriptions, and small reviewable changes.'},{id:'i3',level:'Intermediate',title:'Use GitHub Issues effectively',text:'Create issues to track bugs, ideas, and tasks with labels, milestones, and checklists.'},{id:'i4',level:'Intermediate',title:'GitHub Actions basics',text:'Use GitHub Actions to run tests or deployments automatically on every push or pull request, keeping your codebase healthy.'},{id:'p1',level:'Pro',title:'Getting your first 100 followers',text:'Share useful projects, write about your work, and engage in issues and discussions. Consistent visible contributions attract followers over time.'},{id:'p2',level:'Pro',title:'Pin your best repositories',text:'Use the pinned repositories feature to highlight 3-6 projects that best represent your skills.'},{id:'p3',level:'Pro',title:'Write an impressive profile README',text:'A profile README can showcase who you are, what you build, and where to find more about you.'},{id:'p4',level:'Pro',title:'How recruiters view GitHub',text:'Recruiters look for clean code, meaningful projects, clear documentation, and consistent activity.'}];
+const tutorialTips=[{id:'b1',level:'Beginner',title:'What is GitHub and why use it',text:'GitHub is a platform for hosting and collaborating on code using Git. It lets you store your projects, track changes over time, and work with others through pull requests and issues.'},{id:'b2',level:'Beginner',title:'Create your first repository',text:'Start by creating a new repository with a clear name and description. Initialize it with a README so visitors immediately understand what the project does.'},{id:'b3',level:'Beginner',title:'Commits, push and pull',text:'Commits capture snapshots of your code; push uploads local commits to GitHub, while pull fetches the latest changes from the remote repository.'},{id:'b4',level:'Beginner',title:'Write a good README',text:'A strong README explains what the project is, how to install it, how to use it, and any contribution guidelines. Treat it like the landing page for your repository.'},{id:'b5',level:'Beginner',title:'Branches and why they matter',text:'Branches let you experiment without breaking main. Create feature branches, make changes there, then merge them back once reviewed.'},{id:'i1',level:'Intermediate',title:'Contribute to open source',text:'Find beginner-friendly issues, fork the repository, create a branch, make focused changes, and open a pull request.'},{id:'i2',level:'Intermediate',title:'Understanding Pull Requests',text:'A pull request proposes changes from one branch to another. Use clear titles, detailed descriptions, and small reviewable changes.'},{id:'i3',level:'Intermediate',title:'Use GitHub Issues effectively',text:'Create issues to track bugs, ideas, and tasks with labels, milestones, and checklists. This keeps work visible.'},{id:'i4',level:'Intermediate',title:'GitHub Actions basics',text:'Use GitHub Actions to run tests or deployments automatically on every push or pull request, keeping your codebase healthy.'},{id:'p1',level:'Pro',title:'Getting your first 100 followers',text:'Share useful projects, write about your work, and engage in issues and discussions. Consistent visible contributions attract followers.'},{id:'p2',level:'Pro',title:'Pin your best repositories',text:'Use the pinned repositories feature to highlight 3-6 projects that best represent your skills so visitors immediately see your strongest work.'},{id:'p3',level:'Pro',title:'Write an impressive profile README',text:'A profile README showcases who you are, what you build, and where to find more about you. Include highlighted projects and tech stack.'},{id:'p4',level:'Pro',title:'How recruiters view GitHub',text:'Recruiters look for clean code, meaningful projects, clear documentation, and consistent activity. Make your best work easy to find.'}];
 const VIDEO_TUTORIALS=[{id:'RGOj5yH7evk',title:'GitHub for Beginners — Full Course',level:'Beginner'},{id:'iv8rSLsi1xo',title:'How to Use GitHub',level:'Beginner'},{id:'HbSjyU2vf6Y',title:'Git and GitHub Crash Course',level:'Beginner'},{id:'jhtbhSpFBTg',title:'How to Contribute to Open Source',level:'Intermediate'},{id:'i_23KUAEtUM',title:'GitHub Actions Full Course',level:'Intermediate'},{id:'apGV9Kg7ics',title:'GitHub Pull Requests Tutorial',level:'Intermediate'}];
-function TutorialSection({theme}){const t=THEMES[theme];const [learnedIds,setLearnedIds]=useState([]);const [query,setQuery]=useState('');const [activeTab,setActiveTab]=useState('written');const filtered=tutorialTips.filter(tip=>{if(!query.trim())return true;const q=query.toLowerCase();return tip.title.toLowerCase().includes(q)||tip.text.toLowerCase().includes(q)||tip.level.toLowerCase().includes(q);});const total=filtered.length,completed=filtered.filter(tip=>learnedIds.includes(tip.id)).length;const progress=total>0?Math.round((completed/total)*100):0;const toggleLearned=id=>setLearnedIds(prev=>prev.includes(id)?prev.filter(x=>x!==id):[...prev,id]);const sections=[{label:'Beginner',level:'Beginner'},{label:'Intermediate',level:'Intermediate'},{label:'Pro',level:'Pro'}];return(<section className="tutorial-section"><div className="tutorial-header"><div><h2 className="tutorial-title" style={{color:t.text}}>Learn GitHub</h2><p className="tutorial-subtitle" style={{color:t.subtext}}>From first commit to a standout presence.</p></div><div className="tutorial-progress"><div className="tutorial-progress-label" style={{color:t.subtext}}>Progress: {completed}/{total}</div><div className="tutorial-progress-bar" style={{background:t.border}}><div className="tutorial-progress-fill" style={{width:`${progress}%`,background:t.accent}}/></div></div></div><div style={{borderBottom:`1px solid ${t.border}`,marginBottom:'1.25rem',display:'flex'}}>{[{key:'written',label:'Written Tips'},{key:'videos',label:'Video Tutorials'}].map(({key,label})=>(<button key={key} onClick={()=>setActiveTab(key)} style={{padding:'0.6rem 1.25rem',background:'none',border:'none',cursor:'pointer',fontWeight:activeTab===key?700:400,fontSize:'0.9rem',color:activeTab===key?t.accent:t.subtext,borderBottom:activeTab===key?`2px solid ${t.accent}`:'2px solid transparent'}}>{label}</button>))}</div>{activeTab==='written'&&(<><div className="tutorial-search-row"><input type="text" className="tutorial-search-input" placeholder="Search tips..." value={query} onChange={e=>setQuery(e.target.value)} style={{background:t.cardBg,color:t.text,borderColor:t.border}}/></div>{sections.map(section=>{const items=filtered.filter(tip=>tip.level===section.level);if(items.length===0)return null;return(<div key={section.level} className="tutorial-section-block"><h3 className="tutorial-section-heading" style={{color:t.accent}}>{section.label}</h3><div className="tutorial-grid">{items.map(tip=>{const learned=learnedIds.includes(tip.id);return(<article key={tip.id} className={`tutorial-card ${learned?'tutorial-card-learned':''}`} style={{background:t.cardBg,border:`1px solid ${learned?t.accent:t.border}`}}><div className="tutorial-header-text"><h4 className="tutorial-card-title" style={{color:t.text}}>{tip.title}</h4><span className={`difficulty-badge difficulty-${tip.level.toLowerCase()}`}>{tip.level}</span></div><p className="tutorial-card-body" style={{color:t.subtext}}>{tip.text}</p><label className="tutorial-checkbox-row" style={{color:t.subtext}}><input type="checkbox" checked={learned} onChange={()=>toggleLearned(tip.id)}/><span>Mark as learned</span></label></article>);})}</div></div>);})}</>)}{activeTab==='videos'&&(<div className="video-grid">{VIDEO_TUTORIALS.map(vid=>(<div key={vid.id} className="video-card" style={{background:t.cardBg,border:`1px solid ${t.border}`,borderRadius:'1rem',overflow:'hidden'}}><iframe src={`https://www.youtube.com/embed/${vid.id}`} title={vid.title} frameBorder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen style={{width:'100%',height:'180px',display:'block'}}/><div style={{padding:'0.85rem'}}><h4 style={{margin:0,color:t.text,fontSize:'0.88rem',fontWeight:600}}>{vid.title}</h4><span className={`difficulty-badge difficulty-${vid.level.toLowerCase()}`} style={{marginTop:'0.4rem',display:'inline-block'}}>{vid.level}</span></div></div>))}</div>)}</section>);}
+function TutorialSection({theme,lang}){const t=THEMES[theme];const [learnedIds,setLearnedIds]=useState([]);const [query,setQuery]=useState('');const [activeTab,setActiveTab]=useState('written');const filtered=tutorialTips.filter(tip=>{if(!query.trim())return true;const q=query.toLowerCase();return tip.title.toLowerCase().includes(q)||tip.text.toLowerCase().includes(q)||tip.level.toLowerCase().includes(q);});const total=filtered.length,completed=filtered.filter(tip=>learnedIds.includes(tip.id)).length;const progress=total>0?Math.round((completed/total)*100):0;const toggleLearned=id=>setLearnedIds(prev=>prev.includes(id)?prev.filter(x=>x!==id):[...prev,id]);const sections=[{label:'Beginner',level:'Beginner'},{label:'Intermediate',level:'Intermediate'},{label:'Pro',level:'Pro'}];return(<section className="tutorial-section"><div className="tutorial-header"><div><h2 className="tutorial-title" style={{color:t.text}}>{tr(lang,'learnGitHub')}</h2><p className="tutorial-subtitle" style={{color:t.subtext}}>From first commit to a standout presence.</p></div><div className="tutorial-progress"><div className="tutorial-progress-label" style={{color:t.subtext}}>{tr(lang,'progress')}: {completed}/{total}</div><div className="tutorial-progress-bar" style={{background:t.border}}><div className="tutorial-progress-fill" style={{width:`${progress}%`,background:t.accent}}/></div></div></div><div style={{borderBottom:`1px solid ${t.border}`,marginBottom:'1.25rem',display:'flex'}}>{[{key:'written',label:'Written Tips'},{key:'videos',label:'Video Tutorials'}].map(({key,label})=>(<button key={key} onClick={()=>setActiveTab(key)} style={{padding:'0.6rem 1.25rem',background:'none',border:'none',cursor:'pointer',fontWeight:activeTab===key?700:400,fontSize:'0.9rem',color:activeTab===key?t.accent:t.subtext,borderBottom:activeTab===key?`2px solid ${t.accent}`:'2px solid transparent'}}>{label}</button>))}</div>{activeTab==='written'&&(<><div className="tutorial-search-row"><input type="text" className="tutorial-search-input" placeholder="Search tips..." value={query} onChange={e=>setQuery(e.target.value)} style={{background:t.cardBg,color:t.text,borderColor:t.border}}/></div>{sections.map(section=>{const items=filtered.filter(tip=>tip.level===section.level);if(items.length===0)return null;return(<div key={section.level} className="tutorial-section-block"><h3 className="tutorial-section-heading" style={{color:t.accent}}>{section.label}</h3><div className="tutorial-grid">{items.map(tip=>{const learned=learnedIds.includes(tip.id);return(<article key={tip.id} className={`tutorial-card ${learned?'tutorial-card-learned':''}`} style={{background:t.cardBg,border:`1px solid ${learned?t.accent:t.border}`}}><div className="tutorial-header-text"><h4 className="tutorial-card-title" style={{color:t.text}}>{tip.title}</h4><span className={`difficulty-badge difficulty-${tip.level.toLowerCase()}`}>{tip.level}</span></div><p className="tutorial-card-body" style={{color:t.subtext}}>{tip.text}</p><label className="tutorial-checkbox-row" style={{color:t.subtext}}><input type="checkbox" checked={learned} onChange={()=>toggleLearned(tip.id)}/><span>{tr(lang,'markAsLearned')}</span></label></article>);})}</div></div>);})}</>)}{activeTab==='videos'&&(<div className="video-grid">{VIDEO_TUTORIALS.map(vid=>(<div key={vid.id} className="video-card" style={{background:t.cardBg,border:`1px solid ${t.border}`,borderRadius:'1rem',overflow:'hidden'}}><iframe src={`https://www.youtube.com/embed/${vid.id}`} title={vid.title} frameBorder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen style={{width:'100%',height:'180px',display:'block'}}/><div style={{padding:'0.85rem'}}><h4 style={{margin:0,color:t.text,fontSize:'0.88rem',fontWeight:600}}>{vid.title}</h4><span className={`difficulty-badge difficulty-${vid.level.toLowerCase()}`} style={{marginTop:'0.4rem',display:'inline-block'}}>{vid.level}</span></div></div>))}</div>)}</section>);}
 
 // ── Profile Page ───────────────────────────────────────────────────────────
-function ProfilePage({theme,userName,userPhoto,setUserPhoto,userAvatar,setUserAvatar}){const t=THEMES[theme];const fileRef=useRef();const prefs=JSON.parse(localStorage.getItem('gpa-prefs')||'{}');const gender=prefs.gender||'Others';const avatars=getAvatarsByGender(gender);useEffect(()=>{if(!userPhoto&&!userAvatar&&avatars.length>0){setUserAvatar(avatars[0]);localStorage.setItem('gpa-avatar',avatars[0]);}},[]);const handlePhotoUpload=e=>{const file=e.target.files[0];if(!file)return;const reader=new FileReader();reader.onload=ev=>{setUserPhoto(ev.target.result);localStorage.setItem('gpa-photo',ev.target.result);setUserAvatar('');localStorage.removeItem('gpa-avatar');};reader.readAsDataURL(file);};const applyAvatar=emoji=>{setUserAvatar(emoji);localStorage.setItem('gpa-avatar',emoji);setUserPhoto('');localStorage.removeItem('gpa-photo');};return(<section style={{display:'flex',flexDirection:'column',gap:'1.5rem'}}><h2 style={{margin:0,color:t.text,fontSize:'1.3rem',fontWeight:700}}>Your Profile</h2><div style={{background:t.cardBg,border:`1px solid ${t.border}`,borderRadius:'1rem',padding:'1.5rem',display:'flex',flexDirection:'column',gap:'1.5rem'}}><div style={{display:'flex',alignItems:'center',gap:'1.25rem'}}><div style={{width:80,height:80,borderRadius:'999px',overflow:'hidden',border:`3px solid ${t.accent}`,display:'flex',alignItems:'center',justifyContent:'center',background:`${t.accent}22`,fontSize:'3rem',boxShadow:`0 0 20px ${t.accent}44`}}>{userPhoto?<img src={userPhoto} alt="avatar" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:<span>{userAvatar||userName?.[0]?.toUpperCase()||'G'}</span>}</div><div><div style={{color:t.text,fontWeight:700,fontSize:'1.1rem'}}>{userName}</div><div style={{color:t.subtext,fontSize:'0.85rem'}}>{localStorage.getItem('gpa-email')||'Guest'}</div><div style={{color:t.subtext,fontSize:'0.8rem',marginTop:'0.2rem'}}>{prefs.role||''}{prefs.role&&prefs.level?' · ':''}{prefs.level||''}{prefs.gender?` · ${prefs.gender}`:''}</div></div></div><div><h3 style={{color:t.accent,margin:'0 0 0.75rem',fontSize:'0.85rem',textTransform:'uppercase',letterSpacing:'0.1em'}}>Upload Your Photo</h3><input type="file" accept="image/*" ref={fileRef} onChange={handlePhotoUpload} style={{display:'none'}}/><div style={{display:'flex',gap:'0.75rem',flexWrap:'wrap'}}><button onClick={()=>fileRef.current.click()} style={{background:t.btnBg,border:'none',color:'#fff',padding:'0.6rem 1.25rem',borderRadius:'0.75rem',cursor:'pointer',fontWeight:600,fontSize:'0.88rem'}}>Upload Photo</button>{(userPhoto||userAvatar)&&<button onClick={()=>{setUserPhoto('');setUserAvatar('');localStorage.removeItem('gpa-photo');localStorage.removeItem('gpa-avatar');}} style={{background:'transparent',border:`1px solid ${t.border}`,color:t.subtext,padding:'0.6rem 1rem',borderRadius:'0.75rem',cursor:'pointer',fontSize:'0.88rem'}}>Remove</button>}</div></div><div><h3 style={{color:t.accent,margin:'0 0 0.5rem',fontSize:'0.85rem',textTransform:'uppercase',letterSpacing:'0.1em'}}>Choose Avatar ({gender})</h3><p style={{color:t.subtext,fontSize:'0.8rem',margin:'0 0 0.75rem'}}>Avatars based on your gender preference</p><div style={{display:'flex',gap:'0.75rem',flexWrap:'wrap'}}>{avatars.map(emoji=>(<button key={emoji} onClick={()=>applyAvatar(emoji)} style={{fontSize:'2rem',padding:'0.5rem',borderRadius:'0.75rem',border:`2px solid ${userAvatar===emoji?t.accent:t.border}`,background:userAvatar===emoji?`${t.accent}22`:'transparent',cursor:'pointer',transition:'all 0.15s',boxShadow:userAvatar===emoji?`0 0 12px ${t.accent}44`:'none'}}>{emoji}</button>))}</div></div></div></section>);}
+function ProfilePage({theme,lang,userName,userPhoto,setUserPhoto,userAvatar,setUserAvatar}){const t=THEMES[theme];const fileRef=useRef();const prefs=JSON.parse(localStorage.getItem('gpa-prefs')||'{}');const gender=prefs.gender||'Others';const avatars=getAvatarsByGender(gender);// eslint-disable-next-line react-hooks/exhaustive-deps
+// eslint-disable-next-line react-hooks/exhaustive-deps
+useEffect(()=>{if(!userPhoto&&!userAvatar&&avatars.length>0){setUserAvatar(avatars[0]);localStorage.setItem('gpa-avatar',avatars[0]);}},[]);const handlePhotoUpload=e=>{const file=e.target.files[0];if(!file)return;const reader=new FileReader();reader.onload=ev=>{setUserPhoto(ev.target.result);localStorage.setItem('gpa-photo',ev.target.result);setUserAvatar('');localStorage.removeItem('gpa-avatar');};reader.readAsDataURL(file);};const applyAvatar=emoji=>{setUserAvatar(emoji);localStorage.setItem('gpa-avatar',emoji);setUserPhoto('');localStorage.removeItem('gpa-photo');};return(<section style={{display:'flex',flexDirection:'column',gap:'1.5rem'}}><h2 style={{margin:0,color:t.text,fontSize:'1.3rem',fontWeight:700}}>{tr(lang,'yourProfile')}</h2><div style={{background:t.cardBg,border:`1px solid ${t.border}`,borderRadius:'1rem',padding:'1.5rem',display:'flex',flexDirection:'column',gap:'1.5rem'}}><div style={{display:'flex',alignItems:'center',gap:'1.25rem'}}><div style={{width:80,height:80,borderRadius:'999px',overflow:'hidden',border:`3px solid ${t.accent}`,display:'flex',alignItems:'center',justifyContent:'center',background:`${t.accent}22`,fontSize:'3rem',boxShadow:`0 0 20px ${t.accent}44`}}>{userPhoto?<img src={userPhoto} alt="avatar" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:<span>{userAvatar||userName?.[0]?.toUpperCase()||'G'}</span>}</div><div><div style={{color:t.text,fontWeight:700,fontSize:'1.1rem'}}>{userName}</div><div style={{color:t.subtext,fontSize:'0.85rem'}}>{localStorage.getItem('gpa-email')||'Guest'}</div><div style={{color:t.subtext,fontSize:'0.8rem',marginTop:'0.2rem'}}>{prefs.role||''}{prefs.role&&prefs.level?' · ':''}{prefs.level||''}{prefs.gender?` · ${prefs.gender}`:''}</div></div></div><div><h3 style={{color:t.accent,margin:'0 0 0.75rem',fontSize:'0.85rem',textTransform:'uppercase',letterSpacing:'0.1em'}}>{tr(lang,'uploadPhoto')}</h3><input type="file" accept="image/*" ref={fileRef} onChange={handlePhotoUpload} style={{display:'none'}}/><div style={{display:'flex',gap:'0.75rem',flexWrap:'wrap'}}><button onClick={()=>fileRef.current.click()} style={{background:t.btnBg,border:'none',color:'#fff',padding:'0.6rem 1.25rem',borderRadius:'0.75rem',cursor:'pointer',fontWeight:600,fontSize:'0.88rem'}}>{tr(lang,'uploadPhoto')}</button>{(userPhoto||userAvatar)&&<button onClick={()=>{setUserPhoto('');setUserAvatar('');localStorage.removeItem('gpa-photo');localStorage.removeItem('gpa-avatar');}} style={{background:'transparent',border:`1px solid ${t.border}`,color:t.subtext,padding:'0.6rem 1rem',borderRadius:'0.75rem',cursor:'pointer',fontSize:'0.88rem'}}>{tr(lang,'remove')}</button>}</div></div><div><h3 style={{color:t.accent,margin:'0 0 0.5rem',fontSize:'0.85rem',textTransform:'uppercase',letterSpacing:'0.1em'}}>Choose Avatar ({gender})</h3><p style={{color:t.subtext,fontSize:'0.8rem',margin:'0 0 0.75rem'}}>Based on your gender preference</p><div style={{display:'flex',gap:'0.75rem',flexWrap:'wrap'}}>{avatars.map(emoji=>(<button key={emoji} onClick={()=>applyAvatar(emoji)} style={{fontSize:'2rem',padding:'0.5rem',borderRadius:'0.75rem',border:`2px solid ${userAvatar===emoji?t.accent:t.border}`,background:userAvatar===emoji?`${t.accent}22`:'transparent',cursor:'pointer',transition:'all 0.15s',boxShadow:userAvatar===emoji?`0 0 12px ${t.accent}44`:'none'}}>{emoji}</button>))}</div></div></div></section>);}
 
 // ── FAQs ───────────────────────────────────────────────────────────────────
-function FAQsPage({theme}){const t=THEMES[theme];const [openIdx,setOpenIdx]=useState(null);const faqs=[{q:'What is GitHub Profile Analyzer?',a:'GitHub Profile Analyzer is an AI-powered web app that analyzes any GitHub profile and provides insights on strengths, improvements, language usage, contribution streaks, and career tips — all powered by Groq AI.'},{q:'How does the AI analysis work?',a:'When you enter a GitHub username, we fetch your public profile data using the GitHub API. This data is then sent to our AI model which generates a structured analysis including your score, strengths, and personalized growth tips.'},{q:'Is my data stored anywhere?',a:'No. We do not store any of your personal data on any server. Your login information is stored locally in your browser using localStorage.'},{q:'How do I compare two profiles?',a:'Go to the Compare Profiles section from the sidebar. Enter two GitHub usernames and click Compare.'},{q:'What does the AI score mean?',a:'The AI score is a number from 0 to 10 that represents the overall strength of a GitHub profile based on repo activity, stars, language diversity, README quality, and contribution consistency.'},{q:'How do I improve my GitHub score?',a:'Focus on adding descriptions and READMEs to your repos, committing consistently, contributing to open source projects, and pinning your best repositories.'},{q:'Which browsers are supported?',a:'GitHub Profile Analyzer works on all modern browsers including Chrome, Firefox, Safari, Edge, and Brave.'},{q:'Is the app free to use?',a:'Yes, the app is completely free to use.'},{q:'How do I change my theme?',a:'Go to Settings from the sidebar and scroll to the Appearance section. Choose from 5 standard themes and 7 Gen-Z animated themes.'},{q:'Why does the chat assistant sometimes fail?',a:'The AI chat uses Groq API. If you see an error, make sure the backend server is running on port 8000.'}];return(<section style={{display:'flex',flexDirection:'column',gap:'1rem'}}><h2 style={{margin:0,color:t.text,fontSize:'1.3rem',fontWeight:700}}>Frequently Asked Questions</h2>{faqs.map((faq,i)=>(<div key={i} style={{background:t.cardBg,border:`1px solid ${openIdx===i?t.accent:t.border}`,borderRadius:'1rem',overflow:'hidden'}}><button onClick={()=>setOpenIdx(openIdx===i?null:i)} style={{width:'100%',padding:'1rem 1.25rem',background:'none',border:'none',cursor:'pointer',display:'flex',justifyContent:'space-between',alignItems:'center',color:t.text,fontWeight:600,fontSize:'0.92rem',textAlign:'left'}}><span>{faq.q}</span><span style={{color:t.accent,fontSize:'1.2rem',marginLeft:'1rem',flexShrink:0}}>{openIdx===i?'−':'+'}</span></button>{openIdx===i&&<div style={{padding:'0 1.25rem 1rem',color:t.subtext,fontSize:'0.9rem',lineHeight:1.7}}>{faq.a}</div>}</div>))}</section>);}
+function FAQsPage({theme,lang}){const t=THEMES[theme];const [openIdx,setOpenIdx]=useState(null);const faqs=[{q:'What is GitHub Profile Analyzer?',a:'An AI-powered web app that analyzes any GitHub profile and provides insights on strengths, improvements, language usage, contribution streaks, and career tips — powered by Groq AI.'},{q:'How does the AI analysis work?',a:'We fetch your public profile data using the GitHub API, then send it to Groq LLaMA AI which generates a structured analysis including your score, strengths, and personalized growth tips.'},{q:'Is my data stored anywhere?',a:'No. All your information is stored locally in your browser using localStorage. Your GitHub data is fetched live each time you analyze.'},{q:'How many free analyzes do I get?',a:`You get ${FREE_ANALYZE_LIMIT} free profile analyzes and ${FREE_COMPARE_LIMIT} free comparisons. Upgrade to Pro for unlimited access.`},{q:'What is included in Pro subscription?',a:'Pro subscribers get unlimited analyzes, unlimited comparisons, all Gen-Z animated themes, priority AI responses, and advanced comparison features.'},{q:'How do I change my theme?',a:'Go to Settings and scroll to Appearance. Choose from 5 standard themes (free) and 7 Gen-Z themes (Pro subscribers only).'},{q:'Why does the chat assistant sometimes fail?',a:'The AI chat uses Groq API. If you see an error, make sure the backend server is running on port 8000.'},{q:'How do I earn GitHub badges?',a:'Go to Dashboard → analyze your profile → scroll down to the Reality Check section. It lists all GitHub badges and exactly how to earn each one.'},{q:'How do I improve my GitHub score?',a:'Add descriptions and READMEs to repos, commit consistently to build a streak, contribute to open source, and complete your profile bio.'},{q:'Which browsers are supported?',a:'All modern browsers: Chrome, Firefox, Safari, Edge, and Brave.'}];return(<section style={{display:'flex',flexDirection:'column',gap:'1rem'}}><h2 style={{margin:0,color:t.text,fontSize:'1.3rem',fontWeight:700}}>{tr(lang,'faqs')}</h2>{faqs.map((faq,i)=>(<div key={i} style={{background:t.cardBg,border:`1px solid ${openIdx===i?t.accent:t.border}`,borderRadius:'1rem',overflow:'hidden'}}><button onClick={()=>setOpenIdx(openIdx===i?null:i)} style={{width:'100%',padding:'1rem 1.25rem',background:'none',border:'none',cursor:'pointer',display:'flex',justifyContent:'space-between',alignItems:'center',color:t.text,fontWeight:600,fontSize:'0.92rem',textAlign:'left'}}><span>{faq.q}</span><span style={{color:t.accent,fontSize:'1.2rem',marginLeft:'1rem',flexShrink:0}}>{openIdx===i?'−':'+'}</span></button>{openIdx===i&&<div style={{padding:'0 1.25rem 1rem',color:t.subtext,fontSize:'0.9rem',lineHeight:1.7}}>{faq.a}</div>}</div>))}</section>);}
 
-// ── Contact Page ───────────────────────────────────────────────────────────
-function ContactPage({theme}){const t=THEMES[theme];const [name,setName]=useState('');const [email,setEmail]=useState('');const [message,setMessage]=useState('');const [sent,setSent]=useState(false);const inp={background:t.cardBg,color:t.text,borderColor:t.border};return(<section style={{display:'flex',flexDirection:'column',gap:'1.5rem'}}><div><h2 style={{margin:0,color:t.text,fontSize:'1.3rem',fontWeight:700}}>Contact Us</h2><p style={{color:t.subtext,fontSize:'0.9rem',margin:'0.25rem 0 0'}}>We'd love to hear from you!</p></div><div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(200px,1fr))',gap:'1rem'}}>{[{icon:'📧',label:'Email',value:'support@gpa.dev'},{icon:'⏰',label:'Response Time',value:'Within 24 hours'},{icon:'🌍',label:'Support',value:'Available worldwide'}].map(item=>(<div key={item.label} style={{background:t.cardBg,border:`1px solid ${t.border}`,borderRadius:'1rem',padding:'1rem',textAlign:'center'}}><div style={{fontSize:'1.5rem',marginBottom:'0.4rem'}}>{item.icon}</div><div style={{color:t.subtext,fontSize:'0.78rem',textTransform:'uppercase',letterSpacing:'0.1em',marginBottom:'0.25rem'}}>{item.label}</div><div style={{color:t.text,fontWeight:600,fontSize:'0.88rem'}}>{item.value}</div></div>))}</div>{sent?(<div style={{background:`${t.accent}18`,border:`1px solid ${t.accent}`,borderRadius:'1rem',padding:'2rem',textAlign:'center'}}><div style={{fontSize:'2rem',marginBottom:'0.5rem'}}>✅</div><div style={{color:t.accent,fontWeight:700}}>Message sent!</div><button onClick={()=>{setSent(false);setName('');setEmail('');setMessage('');}} style={{background:t.btnBg,border:'none',color:'#fff',padding:'0.6rem 1.5rem',borderRadius:'0.75rem',cursor:'pointer',fontWeight:600,marginTop:'1rem',fontSize:'0.9rem'}}>Send Another</button></div>):(<div style={{background:t.cardBg,border:`1px solid ${t.border}`,borderRadius:'1rem',padding:'1.5rem',display:'flex',flexDirection:'column',gap:'1rem'}}><input className="auth-input" type="text" placeholder="Your name" value={name} onChange={e=>setName(e.target.value)} style={inp}/><input className="auth-input" type="email" placeholder="Your email" value={email} onChange={e=>setEmail(e.target.value)} style={inp}/><textarea placeholder="Your message..." value={message} onChange={e=>setMessage(e.target.value)} rows={4} style={{...inp,padding:'0.85rem 1rem',borderRadius:'0.9rem',border:`1px solid ${t.border}`,fontSize:'0.95rem',outline:'none',resize:'vertical',fontFamily:'inherit'}}/><button onClick={()=>{if(name.trim()&&email.trim()&&message.trim())setSent(true);}} disabled={!name.trim()||!email.trim()||!message.trim()} style={{background:t.btnBg,border:'none',color:'#fff',padding:'0.85rem',borderRadius:'0.9rem',cursor:'pointer',fontWeight:600,fontSize:'0.95rem',opacity:(!name.trim()||!email.trim()||!message.trim())?0.6:1}}>Send Message</button></div>)}</section>);}
+// ── Contact ────────────────────────────────────────────────────────────────
+function ContactPage({theme,lang}){const t=THEMES[theme];const [name,setName]=useState('');const [email,setEmail]=useState('');const [message,setMessage]=useState('');const [sent,setSent]=useState(false);const inp={background:t.cardBg,color:t.text,borderColor:t.border};return(<section style={{display:'flex',flexDirection:'column',gap:'1.5rem'}}><div><h2 style={{margin:0,color:t.text,fontSize:'1.3rem',fontWeight:700}}>{tr(lang,'contactUs')}</h2><p style={{color:t.subtext,fontSize:'0.9rem',margin:'0.25rem 0 0'}}>We'd love to hear from you!</p></div><div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(200px,1fr))',gap:'1rem'}}>{[{icon:'📧',label:'Email',value:'support@gpa.dev'},{icon:'⏰',label:'Response Time',value:'Within 24 hours'},{icon:'🌍',label:'Support',value:'Available worldwide'}].map(item=>(<div key={item.label} style={{background:t.cardBg,border:`1px solid ${t.border}`,borderRadius:'1rem',padding:'1rem',textAlign:'center'}}><div style={{fontSize:'1.5rem',marginBottom:'0.4rem'}}>{item.icon}</div><div style={{color:t.subtext,fontSize:'0.78rem',textTransform:'uppercase',letterSpacing:'0.1em',marginBottom:'0.25rem'}}>{item.label}</div><div style={{color:t.text,fontWeight:600,fontSize:'0.88rem'}}>{item.value}</div></div>))}</div>{sent?(<div style={{background:`${t.accent}18`,border:`1px solid ${t.accent}`,borderRadius:'1rem',padding:'2rem',textAlign:'center'}}><div style={{fontSize:'2rem',marginBottom:'0.5rem'}}>✅</div><div style={{color:t.accent,fontWeight:700}}>Message sent!</div><button onClick={()=>{setSent(false);setName('');setEmail('');setMessage('');}} style={{background:t.btnBg,border:'none',color:'#fff',padding:'0.6rem 1.5rem',borderRadius:'0.75rem',cursor:'pointer',fontWeight:600,marginTop:'1rem',fontSize:'0.9rem'}}>Send Another</button></div>):(<div style={{background:t.cardBg,border:`1px solid ${t.border}`,borderRadius:'1rem',padding:'1.5rem',display:'flex',flexDirection:'column',gap:'1rem'}}><input className="auth-input" type="text" placeholder="Your name" value={name} onChange={e=>setName(e.target.value)} style={inp}/><input className="auth-input" type="email" placeholder="Your email" value={email} onChange={e=>setEmail(e.target.value)} style={inp}/><textarea placeholder="Your message..." value={message} onChange={e=>setMessage(e.target.value)} rows={4} style={{...inp,padding:'0.85rem 1rem',borderRadius:'0.9rem',border:`1px solid ${t.border}`,fontSize:'0.95rem',outline:'none',resize:'vertical',fontFamily:'inherit'}}/><button onClick={()=>{if(name.trim()&&email.trim()&&message.trim())setSent(true);}} disabled={!name.trim()||!email.trim()||!message.trim()} style={{background:t.btnBg,border:'none',color:'#fff',padding:'0.85rem',borderRadius:'0.9rem',cursor:'pointer',fontWeight:600,fontSize:'0.95rem',opacity:(!name.trim()||!email.trim()||!message.trim())?0.6:1}}>{tr(lang,'send')}</button></div>)}</section>);}
 
 // ── Terms & Privacy ────────────────────────────────────────────────────────
-function TermsPage({theme}){const t=THEMES[theme];const sections=[{title:'1. Acceptance of Terms',content:'By accessing or using GitHub Profile Analyzer, you agree to be bound by these Terms and Conditions.'},{title:'2. Use of Service',content:'GitHub Profile Analyzer is provided for personal and educational use only. You may not use the App for any unlawful purpose.'},{title:'3. GitHub API Usage',content:"This App uses the GitHub REST API to fetch publicly available profile data. We only access public data and never request write permissions."},{title:'4. AI-Generated Content',content:'The AI analysis is generated by Groq AI and is intended for informational purposes only. It should not be taken as professional career advice.'},{title:'5. Data Privacy',content:"We do not collect, store, or transmit your personal data to any external server. All information is stored locally in your browser's localStorage."},{title:'6. Limitation of Liability',content:'GitHub Profile Analyzer is provided as is without any warranties.'},{title:'7. Changes to Terms',content:'We reserve the right to update these Terms at any time.'},{title:'8. Contact',content:'For questions about these Terms, contact us at legal@gpa.dev'}];return(<section style={{display:'flex',flexDirection:'column',gap:'1rem'}}><div><h2 style={{margin:0,color:t.text,fontSize:'1.3rem',fontWeight:700}}>Terms & Conditions</h2><p style={{color:t.subtext,fontSize:'0.85rem',margin:'0.25rem 0 0'}}>Last updated: March 2026</p></div>{sections.map(s=>(<div key={s.title} style={{background:t.cardBg,border:`1px solid ${t.border}`,borderRadius:'1rem',padding:'1.25rem'}}><h3 style={{color:t.accent,margin:'0 0 0.5rem',fontSize:'0.92rem',fontWeight:700}}>{s.title}</h3><p style={{color:t.subtext,fontSize:'0.88rem',lineHeight:1.7,margin:0}}>{s.content}</p></div>))}</section>);}
-function PrivacyPage({theme}){const t=THEMES[theme];const sections=[{title:'What Data We Collect',content:"We collect your name and email stored locally, theme and font preferences stored locally, and onboarding preferences."},{title:'How We Use Your Data',content:'Your data is used solely to personalize your experience within the App.'},{title:'Data Storage',content:"All personal data is stored exclusively in your browser's localStorage and never transmitted to our servers."},{title:'GitHub API',content:'When you analyze a profile, we send a request to the GitHub REST API. Only publicly available data is accessed.'},{title:'AI Processing',content:"Profile data is sent to Groq AI for analysis. We do not send any personally identifiable information."},{title:'Your Rights',content:"You can delete all your data by clearing your browser's localStorage."},{title:'Contact',content:'Contact us at privacy@gpa.dev for any privacy concerns.'}];return(<section style={{display:'flex',flexDirection:'column',gap:'1rem'}}><div><h2 style={{margin:0,color:t.text,fontSize:'1.3rem',fontWeight:700}}>Privacy Policy</h2><p style={{color:t.subtext,fontSize:'0.85rem',margin:'0.25rem 0 0'}}>Last updated: March 2026</p></div>{sections.map(s=>(<div key={s.title} style={{background:t.cardBg,border:`1px solid ${t.border}`,borderRadius:'1rem',padding:'1.25rem'}}><h3 style={{color:t.accent,margin:'0 0 0.5rem',fontSize:'0.92rem',fontWeight:700}}>{s.title}</h3><p style={{color:t.subtext,fontSize:'0.88rem',lineHeight:1.7,margin:0}}>{s.content}</p></div>))}</section>);}
+function TermsPage({theme,lang}){const t=THEMES[theme];const sections=[{title:'1. Acceptance of Terms',content:'By accessing or using GitHub Profile Analyzer, you agree to be bound by these Terms and Conditions.'},{title:'2. Use of Service',content:'GitHub Profile Analyzer is provided for personal and educational use only. You may not use the App for any unlawful purpose.'},{title:'3. GitHub API Usage',content:'This App uses the GitHub REST API to fetch publicly available profile data only. We never access private data.'},{title:'4. AI-Generated Content',content:'The AI analysis is for informational purposes only and should not be taken as professional career advice.'},{title:'5. Subscription & Payments',content:'Subscriptions are for the duration purchased. Payments are processed via Razorpay. Contact support@gpa.dev for refund requests.'},{title:'6. Data Privacy',content:"All information is stored locally in your browser's localStorage and never transmitted to our servers except for GitHub profile analysis."},{title:'7. Limitation of Liability',content:'GitHub Profile Analyzer is provided as is without any warranties. We are not liable for any damages arising from use of the App.'},{title:'8. Contact',content:'For questions contact us at legal@gpa.dev'}];return(<section style={{display:'flex',flexDirection:'column',gap:'1rem'}}><div><h2 style={{margin:0,color:t.text,fontSize:'1.3rem',fontWeight:700}}>{tr(lang,'terms')}</h2><p style={{color:t.subtext,fontSize:'0.85rem',margin:'0.25rem 0 0'}}>Last updated: April 2026</p></div>{sections.map(s=>(<div key={s.title} style={{background:t.cardBg,border:`1px solid ${t.border}`,borderRadius:'1rem',padding:'1.25rem'}}><h3 style={{color:t.accent,margin:'0 0 0.5rem',fontSize:'0.92rem',fontWeight:700}}>{s.title}</h3><p style={{color:t.subtext,fontSize:'0.88rem',lineHeight:1.7,margin:0}}>{s.content}</p></div>))}</section>);}
+function PrivacyPage({theme,lang}){const t=THEMES[theme];const sections=[{title:'What Data We Collect',content:"We collect your name and email stored locally, theme and font preferences, and onboarding preferences. All stored in your browser only."},{title:'How We Use Your Data',content:'Your data personalizes your experience. We use your name to greet you and preferences to apply correct settings.'},{title:'Data Storage',content:"All data is stored exclusively in your browser's localStorage and never transmitted to our servers."},{title:'GitHub API',content:'We fetch public GitHub profile data only. No private data is ever accessed.'},{title:'AI Processing',content:"Public GitHub data is sent to Groq AI for analysis. No personally identifiable information is shared."},{title:'Payments',content:'Payment processing is handled by Razorpay. We do not store card or payment details.'},{title:'Your Rights',content:"Delete all your data by clearing your browser's localStorage or using browser developer tools."},{title:'Contact',content:'Contact us at privacy@gpa.dev for any privacy concerns. We respond within 48 hours.'}];return(<section style={{display:'flex',flexDirection:'column',gap:'1rem'}}><div><h2 style={{margin:0,color:t.text,fontSize:'1.3rem',fontWeight:700}}>{tr(lang,'privacy')}</h2><p style={{color:t.subtext,fontSize:'0.85rem',margin:'0.25rem 0 0'}}>Last updated: April 2026</p></div>{sections.map(s=>(<div key={s.title} style={{background:t.cardBg,border:`1px solid ${t.border}`,borderRadius:'1rem',padding:'1.25rem'}}><h3 style={{color:t.accent,margin:'0 0 0.5rem',fontSize:'0.92rem',fontWeight:700}}>{s.title}</h3><p style={{color:t.subtext,fontSize:'0.88rem',lineHeight:1.7,margin:0}}>{s.content}</p></div>))}</section>);}
 
-// ── Settings Page ──────────────────────────────────────────────────────────
-function SettingsPage({theme,setTheme,userName,userPhoto,setUserPhoto,fontSize,setFontSize,language,setLanguage,fontStyle,setFontStyle,isPremium}){
-  const t=THEMES[theme];const fileRef=useRef();const [toast,setToast]=useState('');
+// ── Settings ───────────────────────────────────────────────────────────────
+function SettingsPage({theme,setTheme,lang,setLang,userName,userPhoto,setUserPhoto,fontSize,setFontSize,fontStyle,setFontStyle,onPaywall}){
+  const t=THEMES[theme];const fileRef=useRef();
   const handlePhotoUpload=e=>{const file=e.target.files[0];if(!file)return;const reader=new FileReader();reader.onload=ev=>{setUserPhoto(ev.target.result);localStorage.setItem('gpa-photo',ev.target.result);};reader.readAsDataURL(file);};
-  const animated=Object.entries(THEMES).filter(([,v])=>v.animated);
+  const handleThemeSelect=(key,val)=>{if(val.premium&&!isPremium()){onPaywall('theme');return;}setTheme(key);localStorage.setItem('gpa-theme',key);};
   const standard=Object.entries(THEMES).filter(([,v])=>!v.animated);
-  
-  const handleThemeChange=(key, isAnimated)=>{
-    if(isAnimated && !isPremium) {
-      setToast('Premium required for Gen-Z animated themes!');
-      return;
-    }
-    setTheme(key);localStorage.setItem('gpa-theme',key);
-  };
-
-  return(
-    <section className="settings-section">
-      {toast&&<Toast message={toast} onClose={()=>setToast('')}/>}
-      <h2 className="settings-title" style={{color:t.text}}>Settings</h2>
-      
-      <div className="settings-block" style={{background:t.cardBg,border:`1px solid ${t.border}`}}>
-        <h3 className="settings-block-title" style={{color:t.accent}}>Profile Picture</h3>
-        <div style={{display:'flex',alignItems:'center',gap:'1rem'}}>
-          <div style={{width:64,height:64,borderRadius:'999px',overflow:'hidden',border:`3px solid ${t.accent}`,display:'flex',alignItems:'center',justifyContent:'center',background:`${t.accent}22`,fontSize:'1.8rem',fontWeight:700,color:t.accent}}>{userPhoto?<img src={userPhoto} alt="avatar" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:(userName?userName[0].toUpperCase():'G')}</div>
-          <div><input type="file" accept="image/*" ref={fileRef} onChange={handlePhotoUpload} style={{display:'none'}}/><button onClick={()=>fileRef.current.click()} style={{background:t.btnBg,border:'none',color:'#fff',padding:'0.6rem 1.25rem',borderRadius:'0.75rem',cursor:'pointer',fontWeight:600,fontSize:'0.88rem'}}>Upload Photo</button>{userPhoto&&<button onClick={()=>{setUserPhoto('');localStorage.removeItem('gpa-photo');}} style={{background:'transparent',border:`1px solid ${t.border}`,color:t.subtext,padding:'0.6rem 1rem',borderRadius:'0.75rem',cursor:'pointer',fontSize:'0.88rem',marginLeft:'0.5rem'}}>Remove</button>}</div>
-        </div>
-      </div>
-      
-      <div className="settings-block" style={{background:t.cardBg,border:`1px solid ${t.border}`}}>
-        <h3 className="settings-block-title" style={{color:t.accent}}>Standard Themes</h3>
-        <div className="theme-grid">
-          {standard.map(([key,val])=>(
-            <button key={key} className={`theme-option ${theme===key?'theme-option-active':''}`} onClick={()=>handleThemeChange(key, false)} style={{background:val.containerBg,border:theme===key?`2px solid ${val.accent}`:`1px solid ${val.border}`,color:val.text,boxShadow:theme===key?`0 0 16px ${val.accent}55`:'none'}}><span className="theme-option-emoji">{val.emoji}</span><span className="theme-option-name">{val.name}</span>{theme===key&&<span className="theme-option-check">✓</span>}</button>
-          ))}
-        </div>
-      </div>
-      
-      <div className="settings-block" style={{background:t.cardBg,border:`1px solid ${t.border}`,position:'relative',overflow:'hidden'}}>
-        <div style={{position:'absolute',top:0,left:0,right:0,height:'2px',background:`linear-gradient(90deg,${t.accent},${t.accent2},${t.accent})`,animation:'shimmer 2s linear infinite',backgroundSize:'200% 100%'}}/>
-        <h3 className="settings-block-title" style={{color:t.accent}}>✨ Gen-Z Themes {!isPremium && '(Premium Only)'}</h3>
-        <div className="theme-grid">
-          {animated.map(([key,val])=>(
-            <button key={key} className={`theme-option ${theme===key?'theme-option-active':''}`} onClick={()=>handleThemeChange(key, true)} style={{background:val.containerBg,border:theme===key?`2px solid ${val.accent}`:`1px solid ${val.border}`,color:val.text,boxShadow:theme===key?`0 0 20px ${val.accent}77`:'none', opacity: !isPremium && theme!==key ? 0.5 : 1}}><span className="theme-option-emoji">{val.emoji}</span><span className="theme-option-name">{val.name}</span>{theme===key&&<span className="theme-option-check">✓</span>}{!isPremium && <span style={{marginLeft:'auto', fontSize:'0.8rem'}}>🔒</span>}</button>
-          ))}
-        </div>
-      </div>
-      
-      <div className="settings-block" style={{background:t.cardBg,border:`1px solid ${t.border}`}}>
-        <h3 className="settings-block-title" style={{color:t.accent}}>Font Size & Style</h3>
-        <div style={{display:'flex',gap:'0.75rem',flexWrap:'wrap',marginBottom:'1rem'}}>
-          {FONT_SIZES.map(size=>(<button key={size} onClick={()=>{setFontSize(size);localStorage.setItem('gpa-fontsize',size);document.documentElement.style.fontSize=FONT_SIZE_MAP[size];}} style={{padding:'0.5rem 1rem',borderRadius:'0.75rem',border:`1px solid ${fontSize===size?t.accent:t.border}`,background:fontSize===size?`${t.accent}18`:'transparent',color:fontSize===size?t.accent:t.text,cursor:'pointer',fontWeight:fontSize===size?700:400,fontSize:'0.88rem'}}>{size}</button>))}
-        </div>
-        <div style={{display:'flex',flexDirection:'column',gap:'0.5rem'}}>
-          {FONT_STYLES.map(f=>(<button key={f.name} onClick={()=>{setFontStyle(f.value);localStorage.setItem('gpa-fontfamily',f.value);document.body.style.fontFamily=f.value;}} style={{padding:'0.6rem 1rem',borderRadius:'0.75rem',border:`1px solid ${fontStyle===f.value?t.accent:t.border}`,background:fontStyle===f.value?`${t.accent}18`:'transparent',color:fontStyle===f.value?t.accent:t.text,cursor:'pointer',fontWeight:fontStyle===f.value?700:400,fontSize:'0.9rem',fontFamily:f.value,textAlign:'left'}}>{f.name} — <span style={{opacity:0.7}}>The quick fox jumps over the lazy dog</span></button>))}
-        </div>
-      </div>
-      
-      <div className="settings-block" style={{background:t.cardBg,border:`1px solid ${t.border}`}}>
-        <h3 className="settings-block-title" style={{color:t.accent}}>Language Preference</h3>
-        <select value={language} onChange={e=>{setLanguage(e.target.value);localStorage.setItem('gpa-language',e.target.value);setToast(`Language set to ${e.target.value}. Translations updated.`);}} style={{background:t.cardBg,color:t.text,border:`1px solid ${t.border}`,borderRadius:'0.75rem',padding:'0.6rem 1rem',fontSize:'0.9rem',outline:'none',cursor:'pointer',width:'100%',maxWidth:'280px'}}>
-          {LANGUAGES.map(lang=><option key={lang} value={lang}>{lang}</option>)}
-        </select>
-      </div>
-      
-      <div className="settings-block" style={{background:t.cardBg,border:`1px solid ${t.border}`}}>
-        <h3 className="settings-block-title" style={{color:t.accent}}>Account</h3>
-        <p style={{color:t.subtext,fontSize:'0.9rem',margin:0}}>Logged in as <strong style={{color:t.text}}>{userName}</strong></p>
-        <p style={{color:t.subtext,fontSize:'0.82rem',margin:'0.25rem 0 0'}}>{localStorage.getItem('gpa-email')||''}</p>
-        <p style={{color:t.accent,fontSize:'0.82rem',margin:'0.25rem 0 0',fontWeight:'bold'}}>{isPremium ? 'Premium Tier ✨' : 'Free Tier'}</p>
-      </div>
-    </section>
-  );
+  const animated=Object.entries(THEMES).filter(([,v])=>v.animated);
+  return(<section className="settings-section">
+    <h2 className="settings-title" style={{color:t.text}}>Settings</h2>
+    <div className="settings-block" style={{background:t.cardBg,border:`1px solid ${t.border}`}}><h3 className="settings-block-title" style={{color:t.accent}}>{tr(lang,'uploadPhoto')}</h3><div style={{display:'flex',alignItems:'center',gap:'1rem'}}><div style={{width:64,height:64,borderRadius:'999px',overflow:'hidden',border:`3px solid ${t.accent}`,display:'flex',alignItems:'center',justifyContent:'center',background:`${t.accent}22`,fontSize:'1.8rem',fontWeight:700,color:t.accent}}>{userPhoto?<img src={userPhoto} alt="avatar" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:(userName?userName[0].toUpperCase():'G')}</div><div><input type="file" accept="image/*" ref={fileRef} onChange={handlePhotoUpload} style={{display:'none'}}/><button onClick={()=>fileRef.current.click()} style={{background:t.btnBg,border:'none',color:'#fff',padding:'0.6rem 1.25rem',borderRadius:'0.75rem',cursor:'pointer',fontWeight:600,fontSize:'0.88rem'}}>{tr(lang,'uploadPhoto')}</button>{userPhoto&&<button onClick={()=>{setUserPhoto('');localStorage.removeItem('gpa-photo');}} style={{background:'transparent',border:`1px solid ${t.border}`,color:t.subtext,padding:'0.6rem 1rem',borderRadius:'0.75rem',cursor:'pointer',fontSize:'0.88rem',marginLeft:'0.5rem'}}>{tr(lang,'remove')}</button>}</div></div></div>
+    <div className="settings-block" style={{background:t.cardBg,border:`1px solid ${t.border}`}}><h3 className="settings-block-title" style={{color:t.accent}}>Standard Themes (Free)</h3><div className="theme-grid">{standard.map(([key,val])=>(<button key={key} className={`theme-option ${theme===key?'theme-option-active':''}`} onClick={()=>handleThemeSelect(key,val)} style={{background:val.containerBg,border:theme===key?`2px solid ${val.accent}`:`1px solid ${val.border}`,color:val.text,boxShadow:theme===key?`0 0 16px ${val.accent}55`:'none'}}><span className="theme-option-emoji">{val.emoji}</span><span className="theme-option-name">{val.name}</span>{theme===key&&<span className="theme-option-check">✓</span>}</button>))}</div></div>
+    <div className="settings-block" style={{background:t.cardBg,border:`1px solid ${t.border}`,position:'relative',overflow:'hidden'}}><div style={{position:'absolute',top:0,left:0,right:0,height:'2px',background:`linear-gradient(90deg,${t.accent},${t.accent2},${t.accent})`,animation:'shimmer 2s linear infinite',backgroundSize:'200% 100%'}}/><h3 className="settings-block-title" style={{color:t.accent}}>✨ Gen-Z Themes {!isPremium()&&<span style={{fontSize:'0.7rem',background:'rgba(251,191,36,0.2)',color:'#fbbf24',padding:'0.1rem 0.4rem',borderRadius:'999px',marginLeft:'0.4rem'}}>PRO</span>}</h3><div className="theme-grid">{animated.map(([key,val])=>(<button key={key} className={`theme-option ${theme===key?'theme-option-active':''}`} onClick={()=>handleThemeSelect(key,val)} style={{background:val.containerBg,border:theme===key?`2px solid ${val.accent}`:`1px solid ${val.border}`,color:val.text,boxShadow:theme===key?`0 0 20px ${val.accent}77`:'none',opacity:!isPremium()?0.7:1,position:'relative'}}><span className="theme-option-emoji">{val.emoji}</span><span className="theme-option-name">{val.name}</span>{!isPremium()&&<span style={{position:'absolute',top:'4px',right:'4px',fontSize:'0.6rem'}}>🔒</span>}{theme===key&&<span className="theme-option-check">✓</span>}</button>))}</div></div>
+    <div className="settings-block" style={{background:t.cardBg,border:`1px solid ${t.border}`}}><h3 className="settings-block-title" style={{color:t.accent}}>{tr(lang,'fontSize')}</h3><div style={{display:'flex',gap:'0.75rem',flexWrap:'wrap'}}>{FONT_SIZES.map(size=>(<button key={size} onClick={()=>{setFontSize(size);localStorage.setItem('gpa-fontsize',size);document.documentElement.style.fontSize=FONT_SIZE_MAP[size];}} style={{padding:'0.5rem 1rem',borderRadius:'0.75rem',border:`1px solid ${fontSize===size?t.accent:t.border}`,background:fontSize===size?`${t.accent}18`:'transparent',color:fontSize===size?t.accent:t.text,cursor:'pointer',fontWeight:fontSize===size?700:400,fontSize:'0.88rem'}}>{size}</button>))}</div></div>
+    <div className="settings-block" style={{background:t.cardBg,border:`1px solid ${t.border}`}}><h3 className="settings-block-title" style={{color:t.accent}}>{tr(lang,'fontStyle')}</h3><div style={{display:'flex',flexDirection:'column',gap:'0.5rem'}}>{FONT_STYLES.map(f=>(<button key={f.name} onClick={()=>{setFontStyle(f.value);localStorage.setItem('gpa-fontfamily',f.value);document.body.style.fontFamily=f.value;}} style={{padding:'0.6rem 1rem',borderRadius:'0.75rem',border:`1px solid ${fontStyle===f.value?t.accent:t.border}`,background:fontStyle===f.value?`${t.accent}18`:'transparent',color:fontStyle===f.value?t.accent:t.text,cursor:'pointer',fontWeight:fontStyle===f.value?700:400,fontSize:'0.9rem',fontFamily:f.value,textAlign:'left'}}>{f.name} — <span style={{opacity:0.7}}>The quick brown fox jumps</span></button>))}</div></div>
+    <div className="settings-block" style={{background:t.cardBg,border:`1px solid ${t.border}`}}><h3 className="settings-block-title" style={{color:t.accent}}>{tr(lang,'languagePref')}</h3><select value={lang} onChange={e=>{setLang(e.target.value);localStorage.setItem('gpa-language',e.target.value);}} style={{background:t.cardBg,color:t.text,border:`1px solid ${t.border}`,borderRadius:'0.75rem',padding:'0.6rem 1rem',fontSize:'0.9rem',outline:'none',cursor:'pointer',width:'100%',maxWidth:'280px'}}>{LANGUAGES_LIST.map(l=><option key={l} value={l}>{l}</option>)}</select><p style={{color:t.subtext,fontSize:'0.8rem',margin:'0.5rem 0 0'}}>✅ UI labels update immediately.</p></div>
+    <div className="settings-block" style={{background:t.cardBg,border:`1px solid ${t.border}`}}><h3 className="settings-block-title" style={{color:t.accent}}>{tr(lang,'account')}</h3><p style={{color:t.subtext,fontSize:'0.9rem',margin:0}}>Logged in as <strong style={{color:t.text}}>{userName}</strong></p><p style={{color:t.subtext,fontSize:'0.82rem',margin:'0.25rem 0 0'}}>{localStorage.getItem('gpa-email')||''}</p></div>
+    <div className="settings-block" style={{background:t.cardBg,border:`1px solid ${t.border}`}}><h3 className="settings-block-title" style={{color:t.accent}}>{tr(lang,'about')}</h3><p style={{color:t.subtext,fontSize:'0.9rem',margin:0}}>GitHub Profile Analyzer v2.0 — Built by Khushi Kumari</p></div>
+  </section>);
 }
 
 // ── Profile Dropdown ───────────────────────────────────────────────────────
-function ProfileDropdown({t,userName,userPhoto,userAvatar,onViewProfile,onSettings,onLogout,onClose}){const ref=useRef();useEffect(()=>{const handler=e=>{if(ref.current&&!ref.current.contains(e.target))onClose();};document.addEventListener('mousedown',handler);return()=>document.removeEventListener('mousedown',handler);},[onClose]);return(<div ref={ref} style={{position:'absolute',top:'3rem',right:0,background:t.containerBg,border:`1px solid ${t.border}`,borderRadius:'1rem',padding:'0.5rem',minWidth:'200px',boxShadow:'0 16px 48px rgba(0,0,0,0.4)',zIndex:200}}><div style={{padding:'0.75rem 1rem',borderBottom:`1px solid ${t.border}`,marginBottom:'0.25rem'}}><div style={{color:t.text,fontWeight:600,fontSize:'0.9rem'}}>{userName}</div><div style={{color:t.subtext,fontSize:'0.78rem'}}>{localStorage.getItem('gpa-email')||'Guest'}</div></div>{[{label:'Your Profile',icon:'👤',action:onViewProfile},{label:'Settings',icon:'⚙️',action:onSettings},{label:'Logout',icon:'🚪',action:onLogout,danger:true}].map(item=>(<button key={item.label} onClick={()=>{item.action();onClose();}} style={{display:'flex',alignItems:'center',gap:'0.6rem',width:'100%',padding:'0.65rem 1rem',background:'none',border:'none',cursor:'pointer',borderRadius:'0.6rem',color:item.danger?'#f87171':t.text,fontSize:'0.9rem',textAlign:'left'}}><span>{item.icon}</span>{item.label}</button>))}</div>);}
+function ProfileDropdown({t,lang,userName,userPhoto,userAvatar,onViewProfile,onSettings,onLogout,onClose}){const ref=useRef();useEffect(()=>{const handler=e=>{if(ref.current&&!ref.current.contains(e.target))onClose();};document.addEventListener('mousedown',handler);return()=>document.removeEventListener('mousedown',handler);},[onClose]);return(<div ref={ref} style={{position:'absolute',top:'3rem',right:0,background:t.containerBg,border:`1px solid ${t.border}`,borderRadius:'1rem',padding:'0.5rem',minWidth:'200px',boxShadow:'0 16px 48px rgba(0,0,0,0.4)',zIndex:200}}><div style={{padding:'0.75rem 1rem',borderBottom:`1px solid ${t.border}`,marginBottom:'0.25rem'}}><div style={{color:t.text,fontWeight:600,fontSize:'0.9rem'}}>{userName}</div><div style={{color:t.subtext,fontSize:'0.78rem'}}>{localStorage.getItem('gpa-email')||'Guest'}</div>{isPremium()&&<div style={{color:t.accent,fontSize:'0.72rem',fontWeight:700,marginTop:'0.2rem'}}>✨ Pro Member</div>}</div>{[{label:tr(lang,'yourProfile'),icon:'👤',action:onViewProfile},{label:'Settings',icon:'⚙️',action:onSettings},{label:tr(lang,'logout'),icon:'🚪',action:onLogout,danger:true}].map(item=>(<button key={item.label} onClick={()=>{item.action();onClose();}} style={{display:'flex',alignItems:'center',gap:'0.6rem',width:'100%',padding:'0.65rem 1rem',background:'none',border:'none',cursor:'pointer',borderRadius:'0.6rem',color:item.danger?'#f87171':t.text,fontSize:'0.9rem',textAlign:'left'}}><span>{item.icon}</span>{item.label}</button>))}</div>);}
 
 // ── Sidebar ────────────────────────────────────────────────────────────────
-function Sidebar({isOpen, onClose, view, setView, onLogout, userName, userPhoto, userAvatar, theme, language, isPremium}) {
-  const tTheme = THEMES[theme];
-  const navItems = [
-    {key: 'dashboard', label: tStr(language, 'dashboard')},
-    {key: 'compare', label: tStr(language, 'compare')},
-    {key: 'tutorial', label: tStr(language, 'tutorial')},
-    {key: 'profile', label: tStr(language, 'profile')},
-    {key: 'subscription', label: tStr(language, 'subscription') + ' ' + (isPremium ? '✨' : '')},
-    {key: 'settings', label: tStr(language, 'settings')},
-    {key: 'faqs', label: tStr(language, 'faqs')},
-    {key: 'contact', label: tStr(language, 'contact')},
-    {key: 'terms', label: tStr(language, 'terms')},
-    {key: 'privacy', label: tStr(language, 'privacy')}
+function Sidebar({isOpen,onClose,view,setView,onLogout,userName,userPhoto,userAvatar,theme,lang}){
+  const t=THEMES[theme];
+  const navItems=[
+    {key:'dashboard',label:tr(lang,'dashboard')},
+    {key:'compare',label:tr(lang,'compare')},
+    {key:'tutorial',label:tr(lang,'tutorial')},
+    {key:'profile',label:tr(lang,'profile')},
+    {key:'subscription',label:tr(lang,'subscription')},
+    {key:'settings',label:tr(lang,'settings')},
+    {key:'faqs',label:tr(lang,'faqs')},
+    {key:'contact',label:tr(lang,'contactUs')},
+    {key:'terms',label:tr(lang,'terms')},
+    {key:'privacy',label:tr(lang,'privacy')},
   ];
-  return (
-    <>
-      {isOpen && <div className="sidebar-overlay" onClick={onClose}/>}
-      <aside className="sidebar" style={{transform: isOpen ? 'translateX(0)' : 'translateX(-100%)', background: tTheme.sidebarBg, borderRight: `1px solid ${tTheme.border}`}}>
-        <div className="sidebar-header"><div className="sidebar-logo"><AnimatedGitHubLogo size={24} color={tTheme.accent}/><span style={{color: tTheme.text, fontWeight: 700, fontSize: '1rem', marginLeft: '0.5rem'}}>GPA</span></div><button className="sidebar-close" onClick={onClose} style={{color: tTheme.subtext}}>✕</button></div>
-        <div className="sidebar-user" style={{borderBottom: `1px solid ${tTheme.border}`}}>
-          <UserAvatar name={userName} photo={userPhoto} avatarEmoji={userAvatar} size={40} accent={tTheme.accent}/>
-          <div><div style={{color: tTheme.text, fontWeight: 600, fontSize: '0.9rem'}}>{userName || 'Guest'}</div><div style={{color: tTheme.accent, fontSize: '0.78rem', fontWeight: 700}}>{isPremium ? 'Premium Member' : 'Free Tier'}</div></div>
-        </div>
-        <nav className="sidebar-nav">
-          {navItems.map(item => (
-            <button key={item.key} className={`sidebar-nav-item ${view === item.key ? 'sidebar-nav-active' : ''}`} onClick={() => {setView(item.key); onClose();}} style={{color: view === item.key ? tTheme.accent : tTheme.text, background: view === item.key ? `${tTheme.accent}18` : 'transparent', borderLeft: view === item.key ? `3px solid ${tTheme.accent}` : '3px solid transparent'}}>{item.label}</button>
-          ))}
-        </nav>
-        <div className="sidebar-footer" style={{borderTop: `1px solid ${tTheme.border}`}}>
-          <button className="sidebar-logout" onClick={onLogout} style={{color: '#f87171', borderColor: 'rgba(248,113,113,0.3)'}}>Logout</button>
-        </div>
-      </aside>
-    </>
-  );
+  return(<>{isOpen&&<div className="sidebar-overlay" onClick={onClose}/>}<aside className="sidebar" style={{transform:isOpen?'translateX(0)':'translateX(-100%)',background:t.sidebarBg,borderRight:`1px solid ${t.border}`}}><div className="sidebar-header"><div className="sidebar-logo"><AnimatedGitHubLogo size={24} color={t.accent}/><span style={{color:t.text,fontWeight:700,fontSize:'1rem',marginLeft:'0.5rem'}}>GPA</span></div><button className="sidebar-close" onClick={onClose} style={{color:t.subtext}}>✕</button></div><div className="sidebar-user" style={{borderBottom:`1px solid ${t.border}`}}><UserAvatar name={userName} photo={userPhoto} avatarEmoji={userAvatar} size={40} accent={t.accent}/><div><div style={{color:t.text,fontWeight:600,fontSize:'0.9rem'}}>{userName||'Guest'}</div><div style={{color:t.subtext,fontSize:'0.78rem'}}>{isPremium()?'✨ Pro Member':tr(lang,'welcomeBack')}</div></div></div><nav className="sidebar-nav">{navItems.map(item=>(<button key={item.key} className={`sidebar-nav-item ${view===item.key?'sidebar-nav-active':''}`} onClick={()=>{setView(item.key);onClose();}} style={{color:view===item.key?t.accent:t.text,background:view===item.key?`${t.accent}18`:'transparent',borderLeft:view===item.key?`3px solid ${t.accent}`:'3px solid transparent'}}>{item.label}{item.key==='subscription'&&!isPremium()&&<span style={{marginLeft:'0.5rem',fontSize:'0.65rem',background:'rgba(251,191,36,0.2)',color:'#fbbf24',padding:'0.1rem 0.4rem',borderRadius:'999px'}}>FREE</span>}</button>))}</nav><div className="sidebar-footer" style={{borderTop:`1px solid ${t.border}`}}><button className="sidebar-logout" onClick={onLogout} style={{color:'#f87171',borderColor:'rgba(248,113,113,0.3)'}}>{tr(lang,'logout')}</button></div></aside></>);
 }
 
-// ── Improved Chat Widget ───────────────────────────────────────────────────
-function ChatWidget({ t, chatMessages, chatInput, setChatInput, handleSendMessage, isChatOpen, setIsChatOpen }) {
-  const [isMaximized, setIsMaximized] = useState(false);
-  const [isMinimized, setIsMinimized] = useState(false);
-  const chatBodyRef = useRef();
-
-  useEffect(() => {
-    if (chatBodyRef.current) chatBodyRef.current.scrollTop = chatBodyRef.current.scrollHeight;
-  }, [chatMessages]);
-
-  const windowWidth = isMaximized ? 520 : 340;
-  const windowHeight = isMaximized ? 520 : 400;
-
-  return (
-    <>
-      {/* FAB Button */}
-      <button type="button" onClick={() => { setIsChatOpen(p => !p); setIsMinimized(false); }}
-        style={{ position:'fixed', right:'1.75rem', bottom:'1.75rem', width:'3.5rem', height:'3.5rem', borderRadius:'999px', border:'none', cursor:'pointer', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:'2px', zIndex:20, background:t.btnBg, boxShadow:'0 8px 32px rgba(0,0,0,0.4)', transition:'transform 0.15s ease' }}
-        onMouseEnter={e => e.currentTarget.style.transform='translateY(-3px) scale(1.05)'}
-        onMouseLeave={e => e.currentTarget.style.transform='scale(1)'}>
-        <AnimatedGitHubLogo size={20} color="#fff"/>
-        {!isChatOpen && <span style={{ fontSize:'0.42rem', color:'rgba(255,255,255,0.9)', fontWeight:700, letterSpacing:'0.02em', whiteSpace:'nowrap' }}>Need help?</span>}
-      </button>
-
-      {/* Chat Window */}
-      {isChatOpen && !isMinimized && (
-        <div style={{ position:'fixed', right:'1.75rem', bottom:'5.5rem', width:windowWidth, height:windowHeight, background:t.containerBg, border:`1px solid ${t.border}`, borderRadius:'1.25rem', boxShadow:'0 24px 60px rgba(0,0,0,0.5)', display:'flex', flexDirection:'column', zIndex:30, transition:'all 0.2s ease', overflow:'hidden' }}>
-          {/* Header */}
-          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0.75rem 1rem', borderBottom:`1px solid ${t.border}`, background:`${t.accent}11`, flexShrink:0 }}>
-            <div style={{ display:'flex', alignItems:'center', gap:'0.5rem' }}>
-              <AnimatedGitHubLogo size={18} color={t.accent}/>
-              <span style={{ color:t.accent, fontWeight:700, fontSize:'0.88rem' }}>GitHub Growth Assistant</span>
-              <span style={{ width:'7px', height:'7px', borderRadius:'999px', background:'#4ade80', animation:'pulse 2s ease-in-out infinite' }}/>
-            </div>
-            <div style={{ display:'flex', gap:'0.35rem' }}>
-              {/* Minimize */}
-              <button onClick={() => setIsMinimized(true)} title="Minimize"
-                style={{ width:'1.4rem', height:'1.4rem', borderRadius:'999px', border:'none', background:'#fbbf24', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'0.7rem', fontWeight:700, color:'#000' }}>—</button>
-              {/* Maximize/Restore */}
-              <button onClick={() => setIsMaximized(p => !p)} title={isMaximized ? 'Restore' : 'Maximize'}
-                style={{ width:'1.4rem', height:'1.4rem', borderRadius:'999px', border:'none', background:'#4ade80', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'0.7rem', fontWeight:700, color:'#000' }}>{isMaximized ? '⤡' : '⤢'}</button>
-              {/* Close */}
-              <button onClick={() => setIsChatOpen(false)} title="Close"
-                style={{ width:'1.4rem', height:'1.4rem', borderRadius:'999px', border:'none', background:'#f87171', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'0.7rem', fontWeight:700, color:'#000' }}>✕</button>
-            </div>
-          </div>
-
-          {/* Messages */}
-          <div ref={chatBodyRef} style={{ flex:1, overflowY:'auto', padding:'0.85rem', display:'flex', flexDirection:'column', gap:'0.6rem' }}>
-            {chatMessages.map(msg => (
-              <div key={msg.id} style={{ display:'flex', justifyContent:msg.from==='user'?'flex-end':'flex-start' }}>
-                {msg.from==='bot' && (
-                  <div style={{ width:'1.6rem', height:'1.6rem', borderRadius:'999px', background:t.accent, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, marginRight:'0.4rem', alignSelf:'flex-end' }}>
-                    <AnimatedGitHubLogo size={10} color="#000"/>
-                  </div>
-                )}
-                <div style={{ maxWidth:'80%', padding:'0.55rem 0.85rem', borderRadius: msg.from==='user'?'1rem 1rem 0.2rem 1rem':'1rem 1rem 1rem 0.2rem', background: msg.from==='user'?t.btnBg:`${t.cardBg}`, border: msg.from==='bot'?`1px solid ${t.border}`:'none', color: msg.from==='user'?'#fff':t.text, fontSize:'0.85rem', lineHeight:1.5 }}>
-                  {msg.text}
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Input */}
-          <div style={{ padding:'0.6rem 0.75rem', borderTop:`1px solid ${t.border}`, display:'flex', gap:'0.5rem', flexShrink:0 }}>
-            <input type="text" placeholder="Ask about growing your GitHub..." value={chatInput} onChange={e => setChatInput(e.target.value)}
-              onKeyDown={e => { if(e.key==='Enter'){ e.preventDefault(); handleSendMessage(); } }}
-              style={{ flex:1, padding:'0.5rem 0.75rem', borderRadius:'0.75rem', border:`1px solid ${t.border}`, background:t.cardBg, color:t.text, fontSize:'0.85rem', outline:'none' }}/>
-            <button onClick={handleSendMessage}
-              style={{ padding:'0.5rem 0.9rem', borderRadius:'0.75rem', border:'none', background:t.btnBg, color:'#fff', cursor:'pointer', fontWeight:700, fontSize:'0.82rem' }}>Send</button>
+// ── Chat Widget ────────────────────────────────────────────────────────────
+function ChatWidget({t,chatMessages,chatInput,setChatInput,handleSendMessage,isChatOpen,setIsChatOpen}){
+  const [isMaximized,setIsMaximized]=useState(false);const [isMinimized,setIsMinimized]=useState(false);const chatBodyRef=useRef();
+  useEffect(()=>{if(chatBodyRef.current)chatBodyRef.current.scrollTop=chatBodyRef.current.scrollHeight;},[chatMessages]);
+  const W=isMaximized?520:340,H=isMaximized?520:400;
+  return(<>
+    <button type="button" onClick={()=>{setIsChatOpen(p=>!p);setIsMinimized(false);}} style={{position:'fixed',right:'1.75rem',bottom:'1.75rem',width:'3.5rem',height:'3.5rem',borderRadius:'999px',border:'none',cursor:'pointer',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:'2px',zIndex:20,background:t.btnBg,boxShadow:'0 8px 32px rgba(0,0,0,0.4)',transition:'transform 0.15s ease'}} onMouseEnter={e=>e.currentTarget.style.transform='translateY(-3px) scale(1.05)'} onMouseLeave={e=>e.currentTarget.style.transform='scale(1)'}>
+      <AnimatedGitHubLogo size={20} color="#fff"/>
+      {!isChatOpen&&<span style={{fontSize:'0.42rem',color:'rgba(255,255,255,0.9)',fontWeight:700,letterSpacing:'0.02em',whiteSpace:'nowrap'}}>Need help?</span>}
+    </button>
+    {isChatOpen&&!isMinimized&&(
+      <div style={{position:'fixed',right:'1.75rem',bottom:'5.5rem',width:W,height:H,background:t.containerBg,border:`1px solid ${t.border}`,borderRadius:'1.25rem',boxShadow:'0 24px 60px rgba(0,0,0,0.5)',display:'flex',flexDirection:'column',zIndex:30,transition:'all 0.2s ease',overflow:'hidden'}}>
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'0.75rem 1rem',borderBottom:`1px solid ${t.border}`,background:`${t.accent}11`,flexShrink:0}}>
+          <div style={{display:'flex',alignItems:'center',gap:'0.5rem'}}><AnimatedGitHubLogo size={18} color={t.accent}/><span style={{color:t.accent,fontWeight:700,fontSize:'0.88rem'}}>GitHub Growth Assistant</span><span style={{width:'7px',height:'7px',borderRadius:'999px',background:'#4ade80'}}/></div>
+          <div style={{display:'flex',gap:'0.35rem'}}>
+            <button onClick={()=>setIsMinimized(true)} title="Minimize" style={{width:'1.4rem',height:'1.4rem',borderRadius:'999px',border:'none',background:'#fbbf24',cursor:'pointer',fontSize:'0.7rem',fontWeight:700,color:'#000'}}>—</button>
+            <button onClick={()=>setIsMaximized(p=>!p)} title={isMaximized?'Restore':'Maximize'} style={{width:'1.4rem',height:'1.4rem',borderRadius:'999px',border:'none',background:'#4ade80',cursor:'pointer',fontSize:'0.7rem',fontWeight:700,color:'#000'}}>{isMaximized?'⤡':'⤢'}</button>
+            <button onClick={()=>setIsChatOpen(false)} title="Close" style={{width:'1.4rem',height:'1.4rem',borderRadius:'999px',border:'none',background:'#f87171',cursor:'pointer',fontSize:'0.7rem',fontWeight:700,color:'#000'}}>✕</button>
           </div>
         </div>
-      )}
-
-      {/* Minimized bar */}
-      {isChatOpen && isMinimized && (
-        <div onClick={() => setIsMinimized(false)}
-          style={{ position:'fixed', right:'1.75rem', bottom:'5.5rem', background:t.containerBg, border:`1px solid ${t.border}`, borderRadius:'0.75rem', padding:'0.5rem 1rem', cursor:'pointer', display:'flex', alignItems:'center', gap:'0.5rem', boxShadow:'0 8px 24px rgba(0,0,0,0.3)', zIndex:30 }}>
-          <AnimatedGitHubLogo size={16} color={t.accent}/>
-          <span style={{ color:t.accent, fontSize:'0.82rem', fontWeight:600 }}>GitHub Growth Assistant</span>
-          <span style={{ color:t.subtext, fontSize:'0.75rem' }}>Click to open</span>
+        <div ref={chatBodyRef} style={{flex:1,overflowY:'auto',padding:'0.85rem',display:'flex',flexDirection:'column',gap:'0.6rem'}}>
+          {chatMessages.map(msg=>(<div key={msg.id} style={{display:'flex',justifyContent:msg.from==='user'?'flex-end':'flex-start'}}>{msg.from==='bot'&&<div style={{width:'1.6rem',height:'1.6rem',borderRadius:'999px',background:t.accent,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,marginRight:'0.4rem',alignSelf:'flex-end'}}><AnimatedGitHubLogo size={10} color="#000"/></div>}<div style={{maxWidth:'80%',padding:'0.55rem 0.85rem',borderRadius:msg.from==='user'?'1rem 1rem 0.2rem 1rem':'1rem 1rem 1rem 0.2rem',background:msg.from==='user'?t.btnBg:t.cardBg,border:msg.from==='bot'?`1px solid ${t.border}`:'none',color:msg.from==='user'?'#fff':t.text,fontSize:'0.85rem',lineHeight:1.5}}>{msg.text}</div></div>))}
         </div>
-      )}
-    </>
-  );
-}
-
-// ── Subscription Page ────────────────────────────────────────────────────────
-function SubscriptionPage({theme, isPremium, setIsPremium, setView}) {
-  const tTheme = THEMES[theme];
-  const [selectedPlan, setSelectedPlan] = useState('1 Month');
-  const [selectedMethod, setSelectedMethod] = useState('');
-  const [isProcessing, setIsProcessing] = useState(false);
-
-  const plans = [
-    { name: '1 Week', price: '$3', features: ['Unlimited Analyzer', 'Unlimited Comparison', 'Gen-Z Themes'] },
-    { name: '1 Month', price: '$7', features: ['Unlimited Analyzer', 'Unlimited Comparison', 'Gen-Z Themes'] },
-    { name: '3 Months', price: '$15', features: ['Unlimited Analyzer', 'Unlimited Comparison', 'Gen-Z Themes'] },
-    { name: '1 Year', price: '$30', features: ['Unlimited Analyzer', 'Unlimited Comparison', 'Gen-Z Themes'] },
-  ];
-  const methods = ['Razorpay', 'PhonePe', 'PayPal', 'Google Pay', 'Paytm'];
-
-  const handleCheckout = () => {
-    if (!selectedMethod) {
-      alert('Please select a payment method');
-      return;
-    }
-    setIsProcessing(true);
-    setTimeout(() => {
-      setIsProcessing(false);
-      setIsPremium(true);
-      localStorage.setItem('gpa-premium', 'true');
-      alert('Payment Successful! Welcome to Premium.');
-      setView('dashboard');
-    }, 1500);
-  };
-
-  if (isPremium) {
-    return (
-      <section style={{textAlign: 'center', paddingTop: '4rem'}}>
-        <div style={{fontSize: '4rem', marginBottom: '1rem'}}>🎉</div>
-        <h2 style={{color: tTheme.accent, fontSize: '2rem'}}>You are Premium!</h2>
-        <p style={{color: tTheme.subtext}}>Enjoy unlimited analysis, comparisons, and Gen-Z themes.</p>
-      </section>
-    );
-  }
-
-  return (
-    <section style={{display: 'flex', flexDirection: 'column', gap: '1.5rem', maxWidth: '800px', margin: '0 auto'}}>
-      <div style={{textAlign: 'center'}}>
-        <h2 style={{margin: 0, color: tTheme.text, fontSize: '1.6rem', fontWeight: 800}}>Upgrade to Premium</h2>
-        <p style={{color: tTheme.subtext, fontSize: '0.95rem', margin: '0.5rem 0 1.5rem'}}>Unlock infinite profile analysis, infinite comparisons, and Gen-Z animated themes!</p>
-      </div>
-      
-      <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem'}}>
-        {plans.map(p => (
-          <div key={p.name} onClick={() => setSelectedPlan(p.name)} style={{background: tTheme.cardBg, border: `2px solid ${selectedPlan === p.name ? tTheme.accent : tTheme.border}`, borderRadius: '1rem', padding: '1.25rem', cursor: 'pointer', position: 'relative', transition: 'transform 0.2s'}}>
-            <h4 style={{color: tTheme.text, margin: '0 0 0.5rem', fontSize: '1.1rem'}}>{p.name}</h4>
-            <div style={{color: tTheme.accent, fontWeight: 800, fontSize: '1.5rem', marginBottom: '1rem'}}>{p.price}</div>
-            {p.features.map((f, i) => (
-              <div key={i} style={{color: tTheme.subtext, fontSize: '0.85rem', marginBottom: '0.2rem'}}>✓ {f}</div>
-            ))}
-          </div>
-        ))}
-      </div>
-
-      <div style={{background: tTheme.cardBg, border: `1px solid ${tTheme.border}`, borderRadius: '1rem', padding: '1.5rem'}}>
-        <h3 style={{color: tTheme.accent, margin: '0 0 1rem', fontSize: '1rem'}}>Select Payment Method</h3>
-        <div style={{display: 'flex', gap: '0.75rem', flexWrap: 'wrap'}}>
-          {methods.map(m => (
-            <button key={m} onClick={() => setSelectedMethod(m)} style={{padding: '0.75rem 1.25rem', borderRadius: '0.75rem', border: `1px solid ${selectedMethod === m ? tTheme.accent : tTheme.border}`, background: selectedMethod === m ? `${tTheme.accent}22` : 'transparent', color: selectedMethod === m ? tTheme.accent : tTheme.text, cursor: 'pointer', fontWeight: 600}}>
-              {m}
-            </button>
-          ))}
+        <div style={{padding:'0.6rem 0.75rem',borderTop:`1px solid ${t.border}`,display:'flex',gap:'0.5rem',flexShrink:0}}>
+          <input type="text" placeholder="Ask about growing your GitHub..." value={chatInput} onChange={e=>setChatInput(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();handleSendMessage();}}} style={{flex:1,padding:'0.5rem 0.75rem',borderRadius:'0.75rem',border:`1px solid ${t.border}`,background:t.cardBg,color:t.text,fontSize:'0.85rem',outline:'none'}}/>
+          <button onClick={handleSendMessage} style={{padding:'0.5rem 0.9rem',borderRadius:'0.75rem',border:'none',background:t.btnBg,color:'#fff',cursor:'pointer',fontWeight:700,fontSize:'0.82rem'}}>Send</button>
         </div>
-        <button onClick={handleCheckout} disabled={isProcessing} style={{width: '100%', marginTop: '1.5rem', padding: '1rem', background: tTheme.btnBg, color: '#fff', border: 'none', borderRadius: '0.75rem', fontSize: '1.1rem', fontWeight: 700, cursor: isProcessing ? 'not-allowed' : 'pointer'}}>
-          {isProcessing ? 'Processing...' : `Pay ${plans.find(p=>p.name===selectedPlan).price} securely`}
-        </button>
       </div>
-    </section>
-  );
+    )}
+    {isChatOpen&&isMinimized&&(<div onClick={()=>setIsMinimized(false)} style={{position:'fixed',right:'1.75rem',bottom:'5.5rem',background:t.containerBg,border:`1px solid ${t.border}`,borderRadius:'0.75rem',padding:'0.5rem 1rem',cursor:'pointer',display:'flex',alignItems:'center',gap:'0.5rem',boxShadow:'0 8px 24px rgba(0,0,0,0.3)',zIndex:30}}><AnimatedGitHubLogo size={16} color={t.accent}/><span style={{color:t.accent,fontSize:'0.82rem',fontWeight:600}}>GitHub Growth Assistant</span><span style={{color:t.subtext,fontSize:'0.75rem'}}>Click to open</span></div>)}
+  </>);
 }
 
 // ── Main App ───────────────────────────────────────────────────────────────
 function App(){
-  const savedTheme=localStorage.getItem('gpa-theme')||'dark';
-  const savedUser=localStorage.getItem('gpa-username');
-  const savedPhoto=localStorage.getItem('gpa-photo')||'';
-  const savedAvatar=localStorage.getItem('gpa-avatar')||'';
-  const savedFontSize=localStorage.getItem('gpa-fontsize')||'Medium';
-  const savedLanguage=localStorage.getItem('gpa-language')||'English';
-  const savedFontStyle=localStorage.getItem('gpa-fontfamily')||'system-ui, sans-serif';
-  const savedPremium=localStorage.getItem('gpa-premium')==='true';
-  const savedAnalyzeCount=parseInt(localStorage.getItem('gpa-analyze-count')||'0',10);
-  const savedCompareCount=parseInt(localStorage.getItem('gpa-compare-count')||'0',10);
-
-  const [theme,setTheme]=useState(savedTheme);
-  const [authStep,setAuthStep]=useState(savedUser?'app':'auth');
-  const [userName,setUserName]=useState(savedUser||'');
-  const [userPhoto,setUserPhoto]=useState(savedPhoto);
-  const [userAvatar,setUserAvatar]=useState(savedAvatar);
-  const [fontSize,setFontSize]=useState(savedFontSize);
-  const [language,setLanguage]=useState(savedLanguage);
-  const [fontStyle,setFontStyle]=useState(savedFontStyle);
-  const [isPremium,setIsPremium]=useState(savedPremium);
-  const [analyzeCount,setAnalyzeCount]=useState(savedAnalyzeCount);
-  const [compareCount,setCompareCount]=useState(savedCompareCount);
-
+  const [theme,setTheme]=useState(localStorage.getItem('gpa-theme')||'dark');
+  const [authStep,setAuthStep]=useState(localStorage.getItem('gpa-username')?'app':'auth');
+  const [userName,setUserName]=useState(localStorage.getItem('gpa-username')||'');
+  const [userPhoto,setUserPhoto]=useState(localStorage.getItem('gpa-photo')||'');
+  const [userAvatar,setUserAvatar]=useState(localStorage.getItem('gpa-avatar')||'');
+  const [fontSize,setFontSize]=useState(localStorage.getItem('gpa-fontsize')||'Medium');
+  const [lang,setLang]=useState(localStorage.getItem('gpa-language')||'English');
+  const [fontStyle,setFontStyle]=useState(localStorage.getItem('gpa-fontfamily')||'system-ui, sans-serif');
   const [isSidebarOpen,setIsSidebarOpen]=useState(false);
   const [view,setView]=useState('dashboard');
   const [searchQuery,setSearchQuery]=useState('');
@@ -827,6 +434,7 @@ function App(){
   const [chatMessages,setChatMessages]=useState(INITIAL_CHAT);
   const [showProfileDropdown,setShowProfileDropdown]=useState(false);
   const [toast,setToast]=useState('');
+  const [paywallType,setPaywallType]=useState(null);
 
   const t=THEMES[theme];
 
@@ -849,88 +457,95 @@ function App(){
   const handleAnalyze=async(overrideUser)=>{
     const trimmed=(overrideUser||username).trim();
     if(!trimmed){setError('Please enter a GitHub username.');return;}
-
-    // Check limits
-    if (!isPremium && analyzeCount >= 3) {
-      setError('Free limit reached! You have used your 3 free profile analyses.');
-      setTimeout(() => setView('subscription'), 2000);
-      return;
-    }
-
+    if(!canAnalyze()){setPaywallType('analyze');return;}
     setIsLoading(true);setError('');
     try{
-      const response=await axios.get(`http://127.0.0.1:8000/analyze/${encodeURIComponent(trimmed)}`);
+      const response=await axios.get(`${API}/analyze/${encodeURIComponent(trimmed)}`);
       const data=response.data||{};
+      incrementUsage('analyze');
       setProfile(data.analysis?.profile||data.profile||null);
       setTopLanguages(data.analysis?.top_languages||data.top_languages||[]);
-      setTopRepos((data.analysis?.top_repositories||data.top_repositories||[]).slice(0,3));
+      setTopRepos(data.analysis?.top_repositories||data.top_repositories||[]); // ALL repos, no slice
       setAiAnalysis(data.analysis?.ai_analysis||data.ai_analysis||null);
       setStreakStats(data.analysis?.contribution_streak||data.contribution_streak||null);
-
-      if(!isPremium) {
-        setAnalyzeCount(prev => {
-          const newCnt = prev + 1;
-          localStorage.setItem('gpa-analyze-count', newCnt);
-          return newCnt;
-        });
-      }
     }catch{setError('Failed to analyze. Make sure backend is running and username is valid.');}
     finally{setIsLoading(false);}
   };
 
   const handleSendMessage=async()=>{
     const trimmed=chatInput.trim();if(!trimmed)return;
-    const prev=chatMessages;
-    const userMsg={id:Date.now(),from:'user',text:trimmed};
-    const thinkId=Date.now()+1;
+    const prev=chatMessages;const userMsg={id:Date.now(),from:'user',text:trimmed};const thinkId=Date.now()+1;
     setChatMessages(m=>[...m,userMsg,{id:thinkId,from:'bot',text:'Thinking...'}]);setChatInput('');
     try{
-      const res=await axios.post('http://127.0.0.1:8000/chat',{message:trimmed,history:[...prev,userMsg].map(m=>({role:m.from==='user'?'user':'assistant',content:m.text}))});
+      const res=await axios.post(`${API}/chat`,{message:trimmed,history:[...prev,userMsg].map(m=>({role:m.from==='user'?'user':'assistant',content:m.text}))});
       setChatMessages(m=>m.map(msg=>msg.id===thinkId?{...msg,text:res.data?.reply||'Analyzing...'}:msg));
     }catch{setChatMessages(m=>m.map(msg=>msg.id===thinkId?{...msg,text:'Sorry, could not reach the assistant. Make sure backend is running.'}:msg));}
   };
 
-  if(authStep==='auth')return<AuthPage onLogin={handleLogin} theme={theme}/>;
+  if(authStep==='auth')return<AuthPage onLogin={handleLogin} theme={theme} lang={lang}/>;
   if(authStep==='onboarding')return<OnboardingSlides userName={userName} onComplete={handleOnboardingComplete} theme={theme}/>;
 
   return(
     <div className="App" style={{background:`radial-gradient(circle at 20% 20%,${t.accent}15,transparent 50%),radial-gradient(circle at 80% 80%,${t.accent2}15,transparent 50%),${t.bg}`,color:t.text,minHeight:'100vh'}}>
       {toast&&<Toast message={toast} onClose={()=>setToast('')}/>}
-      <Sidebar isOpen={isSidebarOpen} onClose={()=>setIsSidebarOpen(false)} view={view} setView={setView} onLogout={handleLogout} userName={userName} userPhoto={userPhoto} userAvatar={userAvatar} theme={theme} language={language} isPremium={isPremium}/>
+      {paywallType&&<PaywallModal t={t} type={paywallType} onClose={()=>setPaywallType(null)} onGoSubscribe={()=>{setPaywallType(null);setView('subscription');}}/>}
+
+      <Sidebar isOpen={isSidebarOpen} onClose={()=>setIsSidebarOpen(false)} view={view} setView={setView} onLogout={handleLogout} userName={userName} userPhoto={userPhoto} userAvatar={userAvatar} theme={theme} lang={lang}/>
+
       <div className="top-search-bar" style={{background:t.containerBg,borderBottom:`1px solid ${t.border}`,backdropFilter:'blur(12px)'}}>
         <button className="hamburger-btn" onClick={()=>setIsSidebarOpen(true)} style={{color:t.text}}>☰</button>
         <AnimatedGitHubLogo size={22} color={t.accent}/>
-        <input className="top-search-input" type="text" placeholder={tStr(language, 'searchPlaceholder')||"Search any GitHub username..."} value={searchQuery} onChange={e=>setSearchQuery(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'&&searchQuery.trim()){setUsername(searchQuery.trim());setView('dashboard');handleAnalyze(searchQuery.trim());setSearchQuery('');}}} style={{background:t.cardBg,color:t.text,borderColor:t.border}}/>
+        <input className="top-search-input" type="text" placeholder={tr(lang,'searchPlaceholder')} value={searchQuery} onChange={e=>setSearchQuery(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'&&searchQuery.trim()){setUsername(searchQuery.trim());setView('dashboard');handleAnalyze(searchQuery.trim());setSearchQuery('');}}} style={{background:t.cardBg,color:t.text,borderColor:t.border}}/>
         <div style={{position:'relative',flexShrink:0,marginLeft:'auto'}}>
           <UserAvatar name={userName} photo={userPhoto} avatarEmoji={userAvatar} size={34} accent={t.accent} onClick={()=>setShowProfileDropdown(p=>!p)}/>
-          {showProfileDropdown&&<ProfileDropdown t={t} userName={userName} userPhoto={userPhoto} userAvatar={userAvatar} onViewProfile={()=>{setView('profile');setShowProfileDropdown(false);}} onSettings={()=>{setView('settings');setShowProfileDropdown(false);}} onLogout={handleLogout} onClose={()=>setShowProfileDropdown(false)}/>}
+          {showProfileDropdown&&<ProfileDropdown t={t} lang={lang} userName={userName} userPhoto={userPhoto} userAvatar={userAvatar} onViewProfile={()=>{setView('profile');setShowProfileDropdown(false);}} onSettings={()=>{setView('settings');setShowProfileDropdown(false);}} onLogout={handleLogout} onClose={()=>setShowProfileDropdown(false)}/>}
         </div>
       </div>
+
       <div className="app-container" style={{background:'transparent',border:'none',boxShadow:'none',paddingTop:'1rem'}}>
         <main className="app-main">
+
           {view==='dashboard'&&(<>
             <div className="hero-section">
               <div className="hero-logo-wrap" style={{boxShadow:`0 0 40px ${t.accent}44`}}><AnimatedGitHubLogo size={60} color={t.accent}/></div>
-              <h1 className="hero-title" style={{color:t.text}}>GitHub Profile Analyzer</h1>
+              <h1 className="hero-title" style={{color:t.text}}>{tr(lang,'appName')}</h1>
               <p className="hero-subtitle" style={{color:t.subtext}}>Enter any GitHub username to get AI-powered insights</p>
+              <div style={{display:'flex',alignItems:'center',gap:'0.5rem',marginBottom:'0.25rem'}}>
+                {!isPremium()&&<span style={{fontSize:'0.8rem',color:t.subtext,background:t.cardBg,padding:'0.2rem 0.6rem',borderRadius:'999px',border:`1px solid ${t.border}`}}>{Math.max(0,FREE_ANALYZE_LIMIT-getUsage().analyze)} free analyzes left</span>}
+                {isPremium()&&<span style={{fontSize:'0.8rem',color:t.accent,background:`${t.accent}18`,padding:'0.2rem 0.6rem',borderRadius:'999px',border:`1px solid ${t.accent}44`}}>✨ Pro — Unlimited</span>}
+              </div>
               <div className="search-input-row hero-search">
                 <input id="github-username" className="search-input" type="text" placeholder="" value={username} onChange={e=>{setUsername(e.target.value);if(!e.target.value.trim())clearAnalysisData();}} onKeyDown={e=>e.key==='Enter'&&handleAnalyze()} style={{background:t.cardBg,color:t.text,borderColor:t.border}}/>
-                <button className="search-button" type="button" onClick={()=>handleAnalyze()} disabled={isLoading} style={{background:t.btnBg}}>{isLoading?'Analyzing...':'Analyze'}</button>
+                <button className="search-button" type="button" onClick={()=>handleAnalyze()} disabled={isLoading} style={{background:t.btnBg}}>{isLoading?tr(lang,'analyzing'):tr(lang,'analyze')}</button>
               </div>
             </div>
+
             {error&&<p style={{color:'#f87171',textAlign:'center'}}>{error}</p>}
-            {isLoading&&<LoadingSpinner/>}
+            {isLoading&&<div className="spinner-wrapper"><div className="spinner"/><span className="spinner-label">{tr(lang,'analyzing')}</span></div>}
+
+            {/* ── FIX: Better layout — no empty space ── */}
             {!isLoading&&(profile||aiAnalysis)&&(
               <section className="results-section">
-                <h2 className="results-title" style={{color:t.subtext}}>Analysis Results</h2>
-                <div className="results-grid">
-                  <ProfileCard profile={profile}/>
+                <h2 className="results-title" style={{color:t.subtext}}>{tr(lang,'analysisResults')}</h2>
+
+                {/* Row 1: Profile + Streak side by side */}
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'1rem',marginBottom:'1rem'}}>
+                  <ProfileCard profile={profile} lang={lang}/>
                   <ContributionStreakCard streak={streakStats}/>
+                </div>
+
+                {/* Row 2: Languages + AI Analysis side by side */}
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'1rem',marginBottom:'1rem'}}>
                   <TopLanguagesCard languages={topLanguages}/>
-                  <RepositoryHighlightsCard repos={topRepos}/>
                   <AiAnalysisCard analysis={aiAnalysis} error={null}/>
                 </div>
-                {/* Profile Reality Check below results */}
+
+                {/* Row 3: Full width all repos */}
+                <div style={{marginBottom:'1rem'}}>
+                  <RepositoryHighlightsCard repos={topRepos}/>
+                </div>
+
+                {/* Row 4: Reality Check — issues left, pie/scores right */}
                 <ProfileRealityCheck
                   profile={profile}
                   languages={topLanguages}
@@ -941,31 +556,21 @@ function App(){
                 />
               </section>
             )}
+
+            <ChatWidget t={t} chatMessages={chatMessages} chatInput={chatInput} setChatInput={setChatInput} handleSendMessage={handleSendMessage} isChatOpen={isChatOpen} setIsChatOpen={setIsChatOpen}/>
           </>)}
-          {view==='compare'&&<CompareSection theme={theme} language={language} isPremium={isPremium} compareCount={compareCount} setCompareCount={setCompareCount} setView={setView}/>}
-          {view==='subscription'&&<SubscriptionPage theme={theme} isPremium={isPremium} setIsPremium={setIsPremium} setView={setView}/>}
-          {view==='tutorial'&&<TutorialSection theme={theme}/>}
-          {view==='settings'&&<SettingsPage theme={theme} setTheme={setTheme} userName={userName} userPhoto={userPhoto} setUserPhoto={setUserPhoto} fontSize={fontSize} setFontSize={setFontSize} language={language} setLanguage={setLanguage} fontStyle={fontStyle} setFontStyle={setFontStyle} isPremium={isPremium}/>}
-          {view==='profile'&&<ProfilePage theme={theme} userName={userName} userPhoto={userPhoto} setUserPhoto={setUserPhoto} userAvatar={userAvatar} setUserAvatar={setUserAvatar}/>}
-          {view==='faqs'&&<FAQsPage theme={theme}/>}
-          {view==='contact'&&<ContactPage theme={theme}/>}
-          {view==='terms'&&<TermsPage theme={theme}/>}
-          {view==='privacy'&&<PrivacyPage theme={theme}/>}
+
+          {view==='compare'&&<CompareSection theme={theme} lang={lang} onPaywall={(type)=>setPaywallType(type)}/>}
+          {view==='tutorial'&&<TutorialSection theme={theme} lang={lang}/>}
+          {view==='subscription'&&<SubscriptionPage theme={theme} lang={lang}/>}
+          {view==='settings'&&<SettingsPage theme={theme} setTheme={setTheme} lang={lang} setLang={setLang} userName={userName} userPhoto={userPhoto} setUserPhoto={setUserPhoto} fontSize={fontSize} setFontSize={setFontSize} fontStyle={fontStyle} setFontStyle={setFontStyle} onPaywall={(type)=>setPaywallType(type)}/>}
+          {view==='profile'&&<ProfilePage theme={theme} lang={lang} userName={userName} userPhoto={userPhoto} setUserPhoto={setUserPhoto} userAvatar={userAvatar} setUserAvatar={setUserAvatar}/>}
+          {view==='faqs'&&<FAQsPage theme={theme} lang={lang}/>}
+          {view==='contact'&&<ContactPage theme={theme} lang={lang}/>}
+          {view==='terms'&&<TermsPage theme={theme} lang={lang}/>}
+          {view==='privacy'&&<PrivacyPage theme={theme} lang={lang}/>}
         </main>
       </div>
-
-      {/* Improved Chat Widget - Dashboard only */}
-      {view==='dashboard'&&(
-        <ChatWidget
-          t={t}
-          chatMessages={chatMessages}
-          chatInput={chatInput}
-          setChatInput={setChatInput}
-          handleSendMessage={handleSendMessage}
-          isChatOpen={isChatOpen}
-          setIsChatOpen={setIsChatOpen}
-        />
-      )}
     </div>
   );
 }

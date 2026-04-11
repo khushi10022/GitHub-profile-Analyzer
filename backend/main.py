@@ -7,24 +7,23 @@ from dotenv import load_dotenv
 
 import github_service
 import ai_service
+import payment_service
 
-# Load .env file FIRST before anything else
 load_dotenv()
 
-# Validate required environment variables on startup
-REQUIRED_ENV_VARS = ["GROQ_API_KEY"]
-for var in REQUIRED_ENV_VARS:
+for var in ["GROQ_API_KEY"]:
     if not os.getenv(var):
-        raise RuntimeError(
-            f"Missing required environment variable: {var}\n"
-            f"Please create a .env file in the backend/ folder with {var}=your_key_here"
-        )
+        raise RuntimeError(f"Missing required environment variable: {var}. Create backend/.env file.")
 
 app = FastAPI(title="GitHub Profile Analyzer API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_origins=[
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "https://*.vercel.app",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -41,6 +40,17 @@ class ChatRequest(BaseModel):
     history: Optional[List[ChatMessage]] = []
 
 
+class OrderRequest(BaseModel):
+    plan_id: str
+
+
+class VerifyRequest(BaseModel):
+    razorpay_order_id: str
+    razorpay_payment_id: str
+    razorpay_signature: str
+    plan_id: str
+
+
 @app.get("/")
 def root():
     return {"status": "GitHub Profile Analyzer API is running"}
@@ -54,7 +64,7 @@ def health():
 @app.get("/analyze/{username}")
 async def analyze(username: str):
     try:
-        github_data = await github_service.fetch_profile(username)
+        github_data = await github_service.analyze_user(username)
         ai_result = await ai_service.analyze_profile(github_data)
         return {
             "status": "success",
@@ -78,3 +88,26 @@ async def chat(request: ChatRequest):
         return {"reply": reply}
     except Exception as e:
         return {"reply": f"Error: {str(e)}"}
+
+
+@app.post("/create-order")
+def create_order(req: OrderRequest):
+    try:
+        order = payment_service.create_order(req.plan_id)
+        return order
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@app.post("/verify-payment")
+def verify_payment(req: VerifyRequest):
+    if req.razorpay_order_id.startswith("demo_"):
+        return {"success": True, "plan_id": req.plan_id}
+    verified = payment_service.verify_payment(
+        req.razorpay_order_id,
+        req.razorpay_payment_id,
+        req.razorpay_signature,
+    )
+    if verified:
+        return {"success": True, "plan_id": req.plan_id}
+    return {"success": False, "error": "Payment verification failed"}
